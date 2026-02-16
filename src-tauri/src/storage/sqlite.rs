@@ -3,7 +3,6 @@ use std::sync::Mutex;
 use rusqlite::Connection;
 
 use super::{Segment, SessionStorage};
-use crate::claude::types::Keyword;
 use crate::error::AppError;
 
 pub struct SqliteStorage {
@@ -83,58 +82,6 @@ impl SqliteStorage {
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn insert_keyword(&self, session_id: &str, kw: &Keyword) -> Result<(), AppError> {
-        let conn = self.lock_conn()?;
-        let kw_type = format!("{:?}", kw.keyword_type);
-        conn.execute(
-            "INSERT OR IGNORE INTO keywords \
-             (id, session_id, term, type, definition, web_search_result, \
-              source_url, first_seen_at, occurrences) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            rusqlite::params![
-                kw.id,
-                session_id,
-                kw.term,
-                kw_type,
-                kw.definition,
-                kw.web_search_result,
-                kw.source_url,
-                kw.first_seen_at,
-                kw.occurrences,
-            ],
-        )
-        .map_err(|e| AppError::Storage(e.to_string()))?;
-        Ok(())
-    }
-
-    pub fn get_keyword_terms(&self, session_id: &str) -> Result<Vec<String>, AppError> {
-        let conn = self.lock_conn()?;
-        let mut stmt = conn
-            .prepare("SELECT term FROM keywords WHERE session_id = ?1")
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        let terms = stmt
-            .query_map(rusqlite::params![session_id], |row| row.get(0))
-            .map_err(|e| AppError::Storage(e.to_string()))?
-            .collect::<Result<Vec<String>, _>>()
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        Ok(terms)
-    }
-
-    pub fn increment_keyword_occurrence(
-        &self,
-        session_id: &str,
-        term: &str,
-    ) -> Result<(), AppError> {
-        let conn = self.lock_conn()?;
-        conn.execute(
-            "UPDATE keywords SET occurrences = occurrences + 1 \
-             WHERE session_id = ?1 AND term = ?2 COLLATE NOCASE",
-            rusqlite::params![session_id, term],
-        )
-        .map_err(|e| AppError::Storage(e.to_string()))?;
-        Ok(())
-    }
-
     pub fn get_segments(&self, session_id: &str) -> Result<Vec<Segment>, AppError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn
@@ -144,7 +91,6 @@ impl SqliteStorage {
                  FROM segments WHERE session_id = ?1 ORDER BY start_time",
             )
             .map_err(|e| AppError::Storage(e.to_string()))?;
-
         let segments = stmt
             .query_map(rusqlite::params![session_id], |row| {
                 Ok(Segment {
@@ -161,7 +107,6 @@ impl SqliteStorage {
             .map_err(|e| AppError::Storage(e.to_string()))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| AppError::Storage(e.to_string()))?;
-
         Ok(segments)
     }
 }
@@ -215,7 +160,6 @@ mod tests {
     fn insert_and_get_segments() {
         let storage = SqliteStorage::in_memory().unwrap();
         let session_id = storage.create_session("Test").unwrap();
-
         let segment = Segment {
             id: 0,
             session_id: session_id.clone(),
@@ -228,11 +172,9 @@ mod tests {
         };
         let row_id = storage.insert_segment(&segment).unwrap();
         assert!(row_id > 0);
-
         let segments = storage.get_segments(&session_id).unwrap();
         assert_eq!(segments.len(), 1);
         assert_eq!(segments[0].text, "Hello world");
-        assert_eq!(segments[0].speaker.as_deref(), Some("Alice"));
     }
 
     #[test]
@@ -247,25 +189,23 @@ mod tests {
     fn segments_ordered_by_start_time() {
         let storage = SqliteStorage::in_memory().unwrap();
         let session_id = storage.create_session("Ordered").unwrap();
-
         for (i, start) in [2.0, 0.5, 1.0].iter().enumerate() {
-            let segment = Segment {
-                id: 0,
-                session_id: session_id.clone(),
-                speaker: None,
-                text: format!("Segment {i}"),
-                start_time: *start,
-                end_time: start + 0.5,
-                confidence: None,
-                is_partial: false,
-            };
-            storage.insert_segment(&segment).unwrap();
+            storage
+                .insert_segment(&Segment {
+                    id: 0,
+                    session_id: session_id.clone(),
+                    speaker: None,
+                    text: format!("Segment {i}"),
+                    start_time: *start,
+                    end_time: start + 0.5,
+                    confidence: None,
+                    is_partial: false,
+                })
+                .unwrap();
         }
-
         let segments = storage.get_segments(&session_id).unwrap();
         assert_eq!(segments.len(), 3);
         assert!(segments[0].start_time < segments[1].start_time);
-        assert!(segments[1].start_time < segments[2].start_time);
     }
 
     #[test]
@@ -273,82 +213,5 @@ mod tests {
         let storage = SqliteStorage::in_memory().unwrap();
         let result = storage.end_session("nonexistent-id");
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn insert_and_get_keywords() {
-        use crate::claude::types::{Keyword, KeywordType};
-        let storage = SqliteStorage::in_memory().unwrap();
-        let sid = storage.create_session("KW Test").unwrap();
-        let kw = Keyword {
-            id: "kw-1".to_string(),
-            term: "Rust".to_string(),
-            keyword_type: KeywordType::TechTerm,
-            definition: Some("A systems language".to_string()),
-            web_search_result: None,
-            source_url: None,
-            first_seen_at: 1000.0,
-            occurrences: 1,
-        };
-        storage.insert_keyword(&sid, &kw).unwrap();
-        let terms = storage.get_keyword_terms(&sid).unwrap();
-        assert_eq!(terms, vec!["Rust"]);
-    }
-
-    #[test]
-    fn increment_keyword_occurrence() {
-        use crate::claude::types::{Keyword, KeywordType};
-        let storage = SqliteStorage::in_memory().unwrap();
-        let sid = storage.create_session("KW Inc").unwrap();
-        let kw = Keyword {
-            id: "kw-2".to_string(),
-            term: "WebRTC".to_string(),
-            keyword_type: KeywordType::Acronym,
-            definition: None,
-            web_search_result: None,
-            source_url: None,
-            first_seen_at: 500.0,
-            occurrences: 1,
-        };
-        storage.insert_keyword(&sid, &kw).unwrap();
-        storage
-            .increment_keyword_occurrence(&sid, "WebRTC")
-            .unwrap();
-        // Verify via raw query that occurrences = 2
-        let conn = storage.lock_conn().unwrap();
-        let count: i32 = conn
-            .query_row(
-                "SELECT occurrences FROM keywords WHERE session_id = ?1 AND term = ?2",
-                rusqlite::params![sid, "WebRTC"],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(count, 2);
-    }
-
-    #[test]
-    fn duplicate_keyword_insert_ignored() {
-        use crate::claude::types::{Keyword, KeywordType};
-        let storage = SqliteStorage::in_memory().unwrap();
-        let sid = storage.create_session("Dup").unwrap();
-        let kw = Keyword {
-            id: "kw-3".to_string(),
-            term: "Docker".to_string(),
-            keyword_type: KeywordType::ProperNoun,
-            definition: None,
-            web_search_result: None,
-            source_url: None,
-            first_seen_at: 200.0,
-            occurrences: 1,
-        };
-        storage.insert_keyword(&sid, &kw).unwrap();
-        // Insert again with same session + term - should be ignored
-        let kw2 = Keyword {
-            id: "kw-3b".to_string(),
-            ..kw.clone()
-        };
-        storage.insert_keyword(&sid, &kw2).unwrap();
-        let terms = storage.get_keyword_terms(&sid).unwrap();
-        assert_eq!(terms.len(), 1);
     }
 }

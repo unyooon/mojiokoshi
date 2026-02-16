@@ -10,6 +10,18 @@ pub enum KeywordType {
     Jargon,
 }
 
+impl KeywordType {
+    /// Parse from database TEXT column value.
+    pub fn from_db_str(s: &str) -> Self {
+        match s {
+            "ProperNoun" => Self::ProperNoun,
+            "Acronym" => Self::Acronym,
+            "Jargon" => Self::Jargon,
+            _ => Self::TechTerm,
+        }
+    }
+}
+
 /// A keyword or term extracted from the transcript.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Keyword {
