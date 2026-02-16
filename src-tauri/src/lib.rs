@@ -8,7 +8,14 @@ pub mod whisper;
 #[cfg(test)]
 pub mod test_helpers;
 
-use commands::health_check;
+use tauri::Manager;
+
+use commands::{
+    check_screen_capture_permission, create_session, end_session, get_capture_state,
+    health_check, pause_audio_capture, resume_audio_capture, start_audio_capture,
+    stop_audio_capture, AppState,
+};
+use error::AppError;
 
 /// Run the Tauri application.
 ///
@@ -17,7 +24,17 @@ use commands::health_check;
 /// Returns an error if the Tauri runtime fails to start.
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let specta_builder = tauri_specta::Builder::<tauri::Wry>::new()
-        .commands(tauri_specta::collect_commands![health_check]);
+        .commands(tauri_specta::collect_commands![
+            health_check,
+            start_audio_capture,
+            stop_audio_capture,
+            pause_audio_capture,
+            resume_audio_capture,
+            get_capture_state,
+            create_session,
+            end_session,
+            check_screen_capture_permission,
+        ]);
 
     #[cfg(debug_assertions)]
     specta_builder
@@ -34,6 +51,24 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .invoke_handler(specta_builder.invoke_handler())
         .setup(move |app| {
             specta_builder.mount_events(app);
+
+            let data_dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&data_dir)
+                .map_err(|e| AppError::Storage(e.to_string()))?;
+            let db_path = data_dir.join("mojiokoshi.db");
+            let db_path_str = db_path
+                .to_str()
+                .ok_or_else(|| AppError::Storage("Invalid DB path".to_string()))?;
+
+            let db = storage::sqlite::SqliteStorage::new(db_path_str)?;
+
+            app.manage(AppState {
+                capture: std::sync::Mutex::new(
+                    audio::screen_capture::ScreenCaptureKitCapture::new(),
+                ),
+                storage: std::sync::Mutex::new(db),
+            });
+
             Ok(())
         })
         .run(tauri::generate_context!())?;
