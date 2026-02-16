@@ -1,5 +1,8 @@
-import { useState, useRef, useEffect, type ReactNode } from "react";
-import type { AiKeyword, AiKeywordType } from "@/types";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { AiKeyword, AiKeywordType, InvestigationResult } from "@/types";
+import { useTranscriptStore } from "@/stores/transcriptStore";
+import { useInsightsStore } from "@/stores/insightsStore";
 
 interface KeywordPopoverProps {
   keyword: AiKeyword;
@@ -15,6 +18,7 @@ const typeBadge: Record<AiKeywordType, { label: string; className: string }> = {
 
 export function KeywordPopover({ keyword, children }: KeywordPopoverProps) {
   const [open, setOpen] = useState(false);
+  const [investigating, setInvestigating] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -29,6 +33,25 @@ export function KeywordPopover({ keyword, children }: KeywordPopoverProps) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [open]);
+
+  const handleInvestigate = useCallback(() => {
+    if (investigating) return;
+    setInvestigating(true);
+    const entries = useTranscriptStore.getState().entries;
+    const context = entries
+      .slice(-10)
+      .map((e) => `[${e.speakerName}] ${e.text}`)
+      .join("\n");
+    void invoke<InvestigationResult>("investigate", { query: keyword.term, context })
+      .then((result) => {
+        useInsightsStore.getState().addInvestigation(result);
+        setOpen(false);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        setInvestigating(false);
+      });
+  }, [keyword.term, investigating]);
 
   const badge = typeBadge[keyword.type];
 
@@ -70,9 +93,11 @@ export function KeywordPopover({ keyword, children }: KeywordPopoverProps) {
           )}
           <button
             type="button"
-            className="w-full mt-1 px-2 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
+            onClick={handleInvestigate}
+            disabled={investigating}
+            className="w-full mt-1 px-2 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            Claudeで詳しく調査
+            {investigating ? "調査中..." : "Claudeで詳しく調査"}
           </button>
         </div>
       )}

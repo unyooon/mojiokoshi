@@ -4,14 +4,16 @@ import { SummaryCard } from "./SummaryCard";
 import { KeywordList } from "./KeywordList";
 import { ActionItemList } from "./ActionItemList";
 import { DecisionList } from "./DecisionList";
+import { InvestigationPanel } from "./InvestigationPanel";
 
-type Section = "summary" | "keywords" | "actions" | "decisions";
+type Section = "summary" | "keywords" | "actions" | "decisions" | "investigation";
 
 const sections: { key: Section; label: string }[] = [
   { key: "summary", label: "サマリー" },
   { key: "keywords", label: "キーワード" },
   { key: "actions", label: "アクション" },
   { key: "decisions", label: "決定事項" },
+  { key: "investigation", label: "調査" },
 ];
 
 const sectionComponents: Record<Section, React.ComponentType> = {
@@ -19,6 +21,7 @@ const sectionComponents: Record<Section, React.ComponentType> = {
   keywords: KeywordList,
   actions: ActionItemList,
   decisions: DecisionList,
+  investigation: InvestigationPanel,
 };
 
 export function InsightsPanel() {
