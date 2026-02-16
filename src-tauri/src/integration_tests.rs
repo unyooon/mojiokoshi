@@ -323,6 +323,79 @@ mod tests {
     }
 
     #[test]
+    fn test_full_ai_pipeline_simulation() {
+        // Full pipeline: capture -> buffer -> VAD -> whisper -> storage -> AI analysis
+        use crate::claude::batch::BatchProcessor;
+        use crate::claude::bridge::ClaudeCodeBridge;
+        use std::sync::{Arc, Mutex};
+
+        let mut capture = ScreenCaptureKitCapture::new();
+        let config = AudioConfig::default();
+        let mut ring_buffer = RingBuffer::new(5.0, config.sample_rate);
+        let vad = StubVad::default();
+        let recognizer = StubRecognizer;
+        let storage = Arc::new(SqliteStorage::in_memory().unwrap());
+
+        // Start session and capture
+        let session_id = storage.create_session("Full AI Pipeline Test").unwrap();
+        capture.start(&config).unwrap();
+
+        // Simulate multiple audio chunks through VAD -> Whisper -> Storage
+        for chunk in 0..3 {
+            let samples: Vec<f32> = (0..4000)
+                .map(|i| ((i + chunk * 4000) as f32 * 0.015).sin() * 0.8)
+                .collect();
+            ring_buffer.push_samples(&samples);
+            let buffer_data = ring_buffer.samples();
+
+            if vad.is_speech(&buffer_data, config.sample_rate).unwrap() {
+                let _segments = recognizer
+                    .transcribe(&buffer_data, config.sample_rate)
+                    .unwrap();
+                let segment = Segment {
+                    id: 0,
+                    session_id: session_id.clone(),
+                    speaker: Some("Speaker".to_string()),
+                    text: format!("Discussing WebRTC and Rust in chunk {chunk}"),
+                    start_time: chunk as f64 * 1000.0,
+                    end_time: (chunk + 1) as f64 * 1000.0,
+                    confidence: Some(0.9),
+                    is_partial: false,
+                };
+                storage.insert_segment(&segment).unwrap();
+            }
+        }
+
+        capture.stop().unwrap();
+
+        // Verify segments stored
+        let stored = storage.get_segments(&session_id).unwrap();
+        assert_eq!(stored.len(), 3);
+
+        // Now run AI analysis via stub bridge
+        let bridge = Arc::new(ClaudeCodeBridge {
+            process: Mutex::new(None),
+            is_stub: true,
+        });
+        let mut processor = BatchProcessor::new(
+            Arc::clone(&bridge),
+            Arc::clone(&storage),
+            session_id.clone(),
+        );
+        let result = processor.process_batch().unwrap();
+        assert!(result.is_some());
+        let batch = result.unwrap();
+        assert_eq!(batch.summary.text, "Stub summary");
+
+        // Cursor advanced; second batch returns None
+        let second = processor.process_batch().unwrap();
+        assert!(second.is_none());
+
+        // End session
+        storage.end_session(&session_id).unwrap();
+    }
+
+    #[test]
     fn test_pause_resume_does_not_lose_data() {
         let mut capture = ScreenCaptureKitCapture::new();
         let config = AudioConfig::default();
