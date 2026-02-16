@@ -3,12 +3,16 @@ import { healthCheck } from "./bindings";
 import { MeetingControls } from "./components/meeting/MeetingControls";
 import { MainLayout } from "./components/layout/MainLayout";
 import { useTauriEvents } from "./hooks/useTauriEvents";
+import { useAiAnalysis } from "./hooks/useAiAnalysis";
 
 function App() {
   const [backendStatus, setBackendStatus] = useState<string>("Connecting...");
   const [isConnected, setIsConnected] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   useTauriEvents();
+  useAiAnalysis(sessionId, isRecording);
 
   useEffect(() => {
     healthCheck()
@@ -22,18 +26,25 @@ function App() {
   }, []);
 
   const handleStart = useCallback(() => {
+    const id = crypto.randomUUID();
+    setSessionId(id);
+    setIsRecording(true);
     // Will invoke Tauri command
   }, []);
 
   const handlePause = useCallback(() => {
+    setIsRecording(false);
     // Will invoke Tauri command
   }, []);
 
   const handleResume = useCallback(() => {
+    setIsRecording(true);
     // Will invoke Tauri command
   }, []);
 
   const handleStop = useCallback(() => {
+    setIsRecording(false);
+    setSessionId(null);
     // Will invoke Tauri command
   }, []);
 
