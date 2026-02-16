@@ -5,6 +5,9 @@ pub mod error;
 pub mod storage;
 pub mod whisper;
 
+#[cfg(test)]
+pub mod test_helpers;
+
 use commands::health_check;
 
 /// Run the Tauri application.
