@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::State;
 
@@ -10,7 +10,11 @@ use crate::storage::SessionStorage;
 
 pub struct AppState {
     pub capture: Mutex<ScreenCaptureKitCapture>,
-    pub storage: Mutex<SqliteStorage>,
+    pub storage: Arc<SqliteStorage>,
+}
+
+fn lock_err<T: std::fmt::Display>(e: T) -> AppError {
+    AppError::Internal(format!("Lock poisoned: {e}"))
 }
 
 #[tauri::command]
@@ -22,10 +26,7 @@ pub fn health_check() -> Result<String, AppError> {
 #[tauri::command]
 #[specta::specta]
 pub fn start_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
-    let mut capture = state
-        .capture
-        .lock()
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut capture = state.capture.lock().map_err(lock_err)?;
     let config = AudioConfig::default();
     capture.start(&config)
 }
@@ -33,68 +34,46 @@ pub fn start_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
 #[tauri::command]
 #[specta::specta]
 pub fn stop_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
-    let mut capture = state
-        .capture
-        .lock()
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut capture = state.capture.lock().map_err(lock_err)?;
     capture.stop()
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn pause_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
-    let mut capture = state
-        .capture
-        .lock()
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut capture = state.capture.lock().map_err(lock_err)?;
     capture.pause()
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn resume_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
-    let mut capture = state
-        .capture
-        .lock()
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut capture = state.capture.lock().map_err(lock_err)?;
     capture.resume()
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn get_capture_state(state: State<'_, AppState>) -> Result<CaptureState, AppError> {
-    let capture = state
-        .capture
-        .lock()
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let capture = state.capture.lock().map_err(lock_err)?;
     Ok(capture.state())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn create_session(state: State<'_, AppState>, title: String) -> Result<String, AppError> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    storage.create_session(&title)
+    state.storage.create_session(&title)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn end_session(state: State<'_, AppState>, session_id: String) -> Result<(), AppError> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    storage.end_session(&session_id)
+    state.storage.end_session(&session_id)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn check_screen_capture_permission() -> Result<bool, AppError> {
-    // ScreenCaptureKit permission check will be implemented
-    // when screencapturekit-rs is added as a dependency.
     Ok(true)
 }
 

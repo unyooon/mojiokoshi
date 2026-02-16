@@ -1,3 +1,4 @@
+pub mod ai_commands;
 pub mod audio;
 pub mod claude;
 pub mod commands;
@@ -11,8 +12,13 @@ pub mod test_helpers;
 #[cfg(test)]
 mod integration_tests;
 
+use std::sync::{Arc, Mutex};
+
 use tauri::Manager;
 
+use ai_commands::{
+    generate_minutes, investigate, run_ai_batch, start_ai_analysis, stop_ai_analysis, AiState,
+};
 use commands::{
     check_screen_capture_permission, create_session, end_session, get_capture_state, health_check,
     pause_audio_capture, resume_audio_capture, start_audio_capture, stop_audio_capture, AppState,
@@ -36,6 +42,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             create_session,
             end_session,
             check_screen_capture_permission,
+            start_ai_analysis,
+            stop_ai_analysis,
+            run_ai_batch,
+            investigate,
+            generate_minutes,
         ]);
 
     #[cfg(debug_assertions)]
@@ -61,13 +72,18 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .to_str()
                 .ok_or_else(|| AppError::Storage("Invalid DB path".to_string()))?;
 
-            let db = storage::sqlite::SqliteStorage::new(db_path_str)?;
+            let db = Arc::new(storage::sqlite::SqliteStorage::new(db_path_str)?);
+            let bridge = Arc::new(claude::ClaudeCodeBridge::new());
 
             app.manage(AppState {
-                capture: std::sync::Mutex::new(
-                    audio::screen_capture::ScreenCaptureKitCapture::new(),
-                ),
-                storage: std::sync::Mutex::new(db),
+                capture: Mutex::new(audio::screen_capture::ScreenCaptureKitCapture::new()),
+                storage: Arc::clone(&db),
+            });
+
+            app.manage(AiState {
+                bridge,
+                storage: db,
+                batch_processor: Mutex::new(None),
             });
 
             Ok(())
