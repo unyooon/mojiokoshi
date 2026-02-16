@@ -1,12 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useInsightsStore } from "../insightsStore";
-import type {
-  AiKeyword,
-  AiSummary,
-  AiActionItem,
-  Decision,
-  InvestigationResult,
-} from "@/types";
+import type { AiKeyword, AiSummary, AiActionItem, Decision, InvestigationResult } from "@/types";
 
 function makeKeyword(overrides: Partial<AiKeyword> = {}): AiKeyword {
   return {
@@ -41,9 +35,7 @@ function makeDecision(overrides: Partial<Decision> = {}): Decision {
   };
 }
 
-function makeInvestigation(
-  overrides: Partial<InvestigationResult> = {},
-): InvestigationResult {
+function makeInvestigation(overrides: Partial<InvestigationResult> = {}): InvestigationResult {
   return {
     id: "inv-1",
     query: "What is WebRTC?",
@@ -79,19 +71,19 @@ describe("insightsStore", () => {
 
     it("deduplicates by term and sums occurrences", () => {
       useInsightsStore.getState().addKeywords([makeKeyword({ occurrences: 2 })]);
-      useInsightsStore.getState().addKeywords([
-        makeKeyword({ id: "kw-2", occurrences: 3 }),
-      ]);
+      useInsightsStore.getState().addKeywords([makeKeyword({ id: "kw-2", occurrences: 3 })]);
       const keywords = useInsightsStore.getState().keywords;
       expect(keywords).toHaveLength(1);
       expect(keywords[0].occurrences).toBe(5);
     });
 
     it("keeps distinct terms separate", () => {
-      useInsightsStore.getState().addKeywords([
-        makeKeyword({ id: "kw-1", term: "WebRTC" }),
-        makeKeyword({ id: "kw-2", term: "Rust" }),
-      ]);
+      useInsightsStore
+        .getState()
+        .addKeywords([
+          makeKeyword({ id: "kw-1", term: "WebRTC" }),
+          makeKeyword({ id: "kw-2", term: "Rust" }),
+        ]);
       expect(useInsightsStore.getState().keywords).toHaveLength(2);
     });
   });
@@ -135,14 +127,10 @@ describe("insightsStore", () => {
 
     it("deduplicates by id", () => {
       useInsightsStore.getState().addActionItems([makeActionItem()]);
-      useInsightsStore.getState().addActionItems([
-        makeActionItem({ text: "Updated text" }),
-      ]);
+      useInsightsStore.getState().addActionItems([makeActionItem({ text: "Updated text" })]);
       expect(useInsightsStore.getState().actionItems).toHaveLength(1);
       // Keeps the first version
-      expect(useInsightsStore.getState().actionItems[0].text).toBe(
-        "Review the deployment plan",
-      );
+      expect(useInsightsStore.getState().actionItems[0].text).toBe("Review the deployment plan");
     });
   });
 
@@ -154,9 +142,7 @@ describe("insightsStore", () => {
 
     it("deduplicates by id", () => {
       useInsightsStore.getState().addDecisions([makeDecision()]);
-      useInsightsStore.getState().addDecisions([
-        makeDecision({ text: "Changed decision" }),
-      ]);
+      useInsightsStore.getState().addDecisions([makeDecision({ text: "Changed decision" })]);
       expect(useInsightsStore.getState().decisions).toHaveLength(1);
     });
   });
@@ -164,9 +150,9 @@ describe("insightsStore", () => {
   describe("addInvestigation", () => {
     it("appends investigation results", () => {
       useInsightsStore.getState().addInvestigation(makeInvestigation());
-      useInsightsStore.getState().addInvestigation(
-        makeInvestigation({ id: "inv-2", query: "What is Rust?" }),
-      );
+      useInsightsStore
+        .getState()
+        .addInvestigation(makeInvestigation({ id: "inv-2", query: "What is Rust?" }));
       expect(useInsightsStore.getState().investigations).toHaveLength(2);
     });
   });
@@ -182,10 +168,12 @@ describe("insightsStore", () => {
     });
 
     it("does not affect other items", () => {
-      useInsightsStore.getState().addActionItems([
-        makeActionItem({ id: "ai-1" }),
-        makeActionItem({ id: "ai-2", text: "Other task" }),
-      ]);
+      useInsightsStore
+        .getState()
+        .addActionItems([
+          makeActionItem({ id: "ai-1" }),
+          makeActionItem({ id: "ai-2", text: "Other task" }),
+        ]);
       useInsightsStore.getState().toggleActionItemComplete("ai-1");
       expect(useInsightsStore.getState().actionItems[0].completed).toBe(true);
       expect(useInsightsStore.getState().actionItems[1].completed).toBe(false);
