@@ -1,0 +1,9 @@
+{
+  "name": "mojiokoshi-ai-bridge",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.42"
+  }
+}
