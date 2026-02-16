@@ -1,3 +1,6 @@
+// AI analysis types
+export * from "./ai";
+
 // Meeting state
 export type MeetingState = "idle" | "recording" | "paused" | "processing" | "review";
 

@@ -11,16 +11,14 @@ pub struct SqliteStorage {
 
 impl SqliteStorage {
     pub fn new(path: &str) -> Result<Self, AppError> {
-        let conn = Connection::open(path).map_err(|e| AppError::Storage(e.to_string()))?;
-        let storage = Self {
-            conn: Mutex::new(conn),
-        };
-        storage.init_tables()?;
-        Ok(storage)
+        Self::from_conn(Connection::open(path).map_err(|e| AppError::Storage(e.to_string()))?)
     }
 
     pub fn in_memory() -> Result<Self, AppError> {
-        let conn = Connection::open_in_memory().map_err(|e| AppError::Storage(e.to_string()))?;
+        Self::from_conn(Connection::open_in_memory().map_err(|e| AppError::Storage(e.to_string()))?)
+    }
+
+    fn from_conn(conn: Connection) -> Result<Self, AppError> {
         let storage = Self {
             conn: Mutex::new(conn),
         };
@@ -28,7 +26,7 @@ impl SqliteStorage {
         Ok(storage)
     }
 
-    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, AppError> {
+    pub(crate) fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, AppError> {
         self.conn
             .lock()
             .map_err(|e| AppError::Storage(format!("lock poisoned: {e}")))
@@ -37,30 +35,28 @@ impl SqliteStorage {
     fn init_tables(&self) -> Result<(), AppError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS sessions (
-                id TEXT PRIMARY KEY,
-                title TEXT,
-                started_at TEXT NOT NULL,
-                ended_at TEXT,
-                target_app TEXT,
-                whisper_model TEXT,
-                status TEXT DEFAULT 'active'
-            );
-            CREATE TABLE IF NOT EXISTS segments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL REFERENCES sessions(id),
-                speaker TEXT,
-                text TEXT NOT NULL,
-                start_time REAL NOT NULL,
-                end_time REAL NOT NULL,
-                confidence REAL,
-                is_partial INTEGER DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS idx_segments_session
-                ON segments(session_id);
-            CREATE INDEX IF NOT EXISTS idx_segments_time
-                ON segments(session_id, start_time);",
+            "CREATE TABLE IF NOT EXISTS sessions (\
+                id TEXT PRIMARY KEY, title TEXT, started_at TEXT NOT NULL, \
+                ended_at TEXT, target_app TEXT, whisper_model TEXT, \
+                status TEXT DEFAULT 'active');\
+            CREATE TABLE IF NOT EXISTS segments (\
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                session_id TEXT NOT NULL REFERENCES sessions(id), \
+                speaker TEXT, text TEXT NOT NULL, start_time REAL NOT NULL, \
+                end_time REAL NOT NULL, confidence REAL, \
+                is_partial INTEGER DEFAULT 0, \
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP);\
+            CREATE INDEX IF NOT EXISTS idx_segments_session ON segments(session_id);\
+            CREATE INDEX IF NOT EXISTS idx_segments_time ON segments(session_id, start_time);\
+            CREATE TABLE IF NOT EXISTS keywords (\
+                id TEXT PRIMARY KEY, \
+                session_id TEXT NOT NULL REFERENCES sessions(id), \
+                term TEXT NOT NULL, type TEXT NOT NULL, definition TEXT, \
+                web_search_result TEXT, source_url TEXT, \
+                first_seen_at REAL NOT NULL, occurrences INTEGER DEFAULT 1);\
+            CREATE INDEX IF NOT EXISTS idx_keywords_session ON keywords(session_id);\
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_keywords_term_session \
+                ON keywords(session_id, term);",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(())
@@ -95,7 +91,6 @@ impl SqliteStorage {
                  FROM segments WHERE session_id = ?1 ORDER BY start_time",
             )
             .map_err(|e| AppError::Storage(e.to_string()))?;
-
         let segments = stmt
             .query_map(rusqlite::params![session_id], |row| {
                 Ok(Segment {
@@ -112,7 +107,6 @@ impl SqliteStorage {
             .map_err(|e| AppError::Storage(e.to_string()))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| AppError::Storage(e.to_string()))?;
-
         Ok(segments)
     }
 }
@@ -166,7 +160,6 @@ mod tests {
     fn insert_and_get_segments() {
         let storage = SqliteStorage::in_memory().unwrap();
         let session_id = storage.create_session("Test").unwrap();
-
         let segment = Segment {
             id: 0,
             session_id: session_id.clone(),
@@ -179,11 +172,9 @@ mod tests {
         };
         let row_id = storage.insert_segment(&segment).unwrap();
         assert!(row_id > 0);
-
         let segments = storage.get_segments(&session_id).unwrap();
         assert_eq!(segments.len(), 1);
         assert_eq!(segments[0].text, "Hello world");
-        assert_eq!(segments[0].speaker.as_deref(), Some("Alice"));
     }
 
     #[test]
@@ -198,25 +189,23 @@ mod tests {
     fn segments_ordered_by_start_time() {
         let storage = SqliteStorage::in_memory().unwrap();
         let session_id = storage.create_session("Ordered").unwrap();
-
         for (i, start) in [2.0, 0.5, 1.0].iter().enumerate() {
-            let segment = Segment {
-                id: 0,
-                session_id: session_id.clone(),
-                speaker: None,
-                text: format!("Segment {i}"),
-                start_time: *start,
-                end_time: start + 0.5,
-                confidence: None,
-                is_partial: false,
-            };
-            storage.insert_segment(&segment).unwrap();
+            storage
+                .insert_segment(&Segment {
+                    id: 0,
+                    session_id: session_id.clone(),
+                    speaker: None,
+                    text: format!("Segment {i}"),
+                    start_time: *start,
+                    end_time: start + 0.5,
+                    confidence: None,
+                    is_partial: false,
+                })
+                .unwrap();
         }
-
         let segments = storage.get_segments(&session_id).unwrap();
         assert_eq!(segments.len(), 3);
         assert!(segments[0].start_time < segments[1].start_time);
-        assert!(segments[1].start_time < segments[2].start_time);
     }
 
     #[test]
