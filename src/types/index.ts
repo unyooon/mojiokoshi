@@ -60,7 +60,13 @@ export interface MeetingSession {
 }
 
 // AI Insights
-export type InsightType = "summary" | "action_item" | "decision" | "question" | "investigation" | "topic";
+export type InsightType =
+  | "summary"
+  | "action_item"
+  | "decision"
+  | "question"
+  | "investigation"
+  | "topic";
 
 export interface AiInsight {
   id: string;

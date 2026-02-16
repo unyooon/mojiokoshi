@@ -15,17 +15,12 @@ function formatTime(timestamp: number): string {
 
 export function SegmentLine({ entry }: SegmentLineProps) {
   return (
-    <div
-      className={`flex gap-3 px-4 py-2 ${entry.isPartial ? "opacity-60" : ""}`}
-    >
+    <div className={`flex gap-3 px-4 py-2 ${entry.isPartial ? "opacity-60" : ""}`}>
       <span className="shrink-0 text-xs text-muted-foreground font-mono tabular-nums mt-0.5">
         {formatTime(entry.timestamp)}
       </span>
       <div className="flex-1 min-w-0">
-        <span
-          className="text-xs font-medium mr-2"
-          style={{ color: entry.speakerColor.text }}
-        >
+        <span className="text-xs font-medium mr-2" style={{ color: entry.speakerColor.text }}>
           {entry.speakerName}
         </span>
         <span className="text-sm">{entry.text}</span>

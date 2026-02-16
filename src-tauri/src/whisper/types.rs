@@ -49,8 +49,7 @@ mod tests {
             is_partial: false,
         };
         let json = serde_json::to_string(&segment).unwrap();
-        let deserialized: TranscriptionSegment =
-            serde_json::from_str(&json).unwrap();
+        let deserialized: TranscriptionSegment = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.text, "Hello");
         assert!((deserialized.confidence - 0.95).abs() < f32::EPSILON);
     }

@@ -25,16 +25,8 @@ pub trait SpeechRecognizer: Send + Sync {
 /// (e.g., Silero VAD).
 pub trait VoiceActivityDetector: Send + Sync {
     /// Detect if the given audio samples contain speech.
-    fn is_speech(
-        &self,
-        samples: &[f32],
-        sample_rate: u32,
-    ) -> Result<bool, AppError>;
+    fn is_speech(&self, samples: &[f32], sample_rate: u32) -> Result<bool, AppError>;
 
     /// Return the probability that the audio contains speech.
-    fn speech_probability(
-        &self,
-        samples: &[f32],
-        sample_rate: u32,
-    ) -> Result<f32, AppError>;
+    fn speech_probability(&self, samples: &[f32], sample_rate: u32) -> Result<f32, AppError>;
 }

@@ -44,9 +44,7 @@ impl AudioCapture for ScreenCaptureKitCapture {
     fn start(&mut self, config: &AudioConfig) -> Result<(), AppError> {
         let current = self.state.load(Ordering::Acquire);
         if current == STATE_CAPTURING {
-            return Err(AppError::AudioCapture(
-                "Already capturing".to_string(),
-            ));
+            return Err(AppError::AudioCapture("Already capturing".to_string()));
         }
         self.config = Some(config.clone());
         self.state.store(STATE_CAPTURING, Ordering::Release);
@@ -75,9 +73,7 @@ impl AudioCapture for ScreenCaptureKitCapture {
     fn resume(&mut self) -> Result<(), AppError> {
         let current = self.state.load(Ordering::Acquire);
         if current != STATE_PAUSED {
-            return Err(AppError::AudioCapture(
-                "Not currently paused".to_string(),
-            ));
+            return Err(AppError::AudioCapture("Not currently paused".to_string()));
         }
         self.state.store(STATE_CAPTURING, Ordering::Release);
         Ok(())

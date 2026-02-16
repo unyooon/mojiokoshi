@@ -9,12 +9,7 @@ interface MeetingControlsProps {
   onStop: () => void;
 }
 
-export function MeetingControls({
-  onStart,
-  onPause,
-  onResume,
-  onStop,
-}: MeetingControlsProps) {
+export function MeetingControls({ onStart, onPause, onResume, onStop }: MeetingControlsProps) {
   const [meetingState, setMeetingState] = useState<MeetingState>("idle");
   const [startTime, setStartTime] = useState<number | null>(null);
 
@@ -53,9 +48,7 @@ export function MeetingControls({
             <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
         )}
-        {isPaused && (
-          <span className="inline-flex h-2 w-2 rounded-full bg-yellow-500" />
-        )}
+        {isPaused && <span className="inline-flex h-2 w-2 rounded-full bg-yellow-500" />}
       </div>
 
       <Timer startTime={startTime} isRunning={isRecording} />

@@ -61,7 +61,11 @@ mod tests {
 
     #[test]
     fn capture_state_serialization_roundtrip() {
-        for state in [CaptureState::Idle, CaptureState::Capturing, CaptureState::Paused] {
+        for state in [
+            CaptureState::Idle,
+            CaptureState::Capturing,
+            CaptureState::Paused,
+        ] {
             let json = serde_json::to_string(&state).unwrap();
             let deserialized: CaptureState = serde_json::from_str(&json).unwrap();
             assert_eq!(deserialized, state);

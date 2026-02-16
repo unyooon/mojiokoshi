@@ -4,16 +4,13 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::audio::{AudioCapture, AudioConfig, CaptureState};
     use crate::audio::screen_capture::ScreenCaptureKitCapture;
+    use crate::audio::{AudioCapture, AudioConfig, CaptureState};
+    use crate::storage::{sqlite::SqliteStorage, Segment, SessionStorage};
     use crate::whisper::{
         pipeline::RingBuffer,
         stub::{StubRecognizer, StubVad},
         SpeechRecognizer, VoiceActivityDetector,
-    };
-    use crate::storage::{
-        sqlite::SqliteStorage,
-        Segment, SessionStorage,
     };
 
     #[test]
@@ -26,9 +23,7 @@ mod tests {
 
         // 2. Simulate audio data in ring buffer
         let mut ring_buffer = RingBuffer::new(5.0, 16000);
-        let samples: Vec<f32> = (0..16000)
-            .map(|i| (i as f32 * 0.01).sin() * 0.8)
-            .collect();
+        let samples: Vec<f32> = (0..16000).map(|i| (i as f32 * 0.01).sin() * 0.8).collect();
         ring_buffer.push_samples(&samples);
         assert!(!ring_buffer.is_empty());
 
@@ -50,9 +45,7 @@ mod tests {
         let recognizer = StubRecognizer;
 
         // Generate audio with speech-like energy
-        let speech_samples: Vec<f32> = (0..8000)
-            .map(|i| (i as f32 * 0.02).sin() * 0.8)
-            .collect();
+        let speech_samples: Vec<f32> = (0..8000).map(|i| (i as f32 * 0.02).sin() * 0.8).collect();
 
         // VAD should detect speech
         let is_speech = vad.is_speech(&speech_samples, 16000).unwrap();

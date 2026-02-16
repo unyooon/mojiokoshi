@@ -14,9 +14,8 @@ mod integration_tests;
 use tauri::Manager;
 
 use commands::{
-    check_screen_capture_permission, create_session, end_session, get_capture_state,
-    health_check, pause_audio_capture, resume_audio_capture, start_audio_capture,
-    stop_audio_capture, AppState,
+    check_screen_capture_permission, create_session, end_session, get_capture_state, health_check,
+    pause_audio_capture, resume_audio_capture, start_audio_capture, stop_audio_capture, AppState,
 };
 use error::AppError;
 
@@ -26,8 +25,8 @@ use error::AppError;
 ///
 /// Returns an error if the Tauri runtime fails to start.
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let specta_builder = tauri_specta::Builder::<tauri::Wry>::new()
-        .commands(tauri_specta::collect_commands![
+    let specta_builder =
+        tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
             health_check,
             start_audio_capture,
             stop_audio_capture,
@@ -56,8 +55,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             specta_builder.mount_events(app);
 
             let data_dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&data_dir)
-                .map_err(|e| AppError::Storage(e.to_string()))?;
+            std::fs::create_dir_all(&data_dir).map_err(|e| AppError::Storage(e.to_string()))?;
             let db_path = data_dir.join("mojiokoshi.db");
             let db_path_str = db_path
                 .to_str()

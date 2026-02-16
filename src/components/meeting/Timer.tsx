@@ -30,11 +30,7 @@ export function Timer({ startTime, isRunning }: TimerProps) {
     };
   }, [isRunning, startTime]);
 
-  const displayElapsed = isRunning ? elapsed : 0;
+  const displayElapsed = startTime !== null ? elapsed : 0;
 
-  return (
-    <span className="font-mono text-sm tabular-nums">
-      {formatDuration(displayElapsed)}
-    </span>
-  );
+  return <span className="font-mono text-sm tabular-nums">{formatDuration(displayElapsed)}</span>;
 }

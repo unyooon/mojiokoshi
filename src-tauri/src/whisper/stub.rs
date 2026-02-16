@@ -1,5 +1,5 @@
-use crate::error::AppError;
 use super::{SpeechRecognizer, TranscriptionSegment, VoiceActivityDetector};
+use crate::error::AppError;
 
 pub struct StubRecognizer;
 
@@ -30,26 +30,17 @@ impl Default for StubVad {
 }
 
 impl VoiceActivityDetector for StubVad {
-    fn is_speech(
-        &self,
-        samples: &[f32],
-        sample_rate: u32,
-    ) -> Result<bool, AppError> {
+    fn is_speech(&self, samples: &[f32], sample_rate: u32) -> Result<bool, AppError> {
         let prob = self.speech_probability(samples, sample_rate)?;
         Ok(prob > self.threshold)
     }
 
-    fn speech_probability(
-        &self,
-        samples: &[f32],
-        _sample_rate: u32,
-    ) -> Result<f32, AppError> {
+    fn speech_probability(&self, samples: &[f32], _sample_rate: u32) -> Result<f32, AppError> {
         if samples.is_empty() {
             return Ok(0.0);
         }
         // Simple energy-based stub: compute RMS energy
-        let energy: f32 =
-            samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32;
+        let energy: f32 = samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32;
         Ok(energy.sqrt().min(1.0))
     }
 }

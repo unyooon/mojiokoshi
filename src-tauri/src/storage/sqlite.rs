@@ -2,8 +2,8 @@ use std::sync::Mutex;
 
 use rusqlite::Connection;
 
-use crate::error::AppError;
 use super::{Segment, SessionStorage};
+use crate::error::AppError;
 
 pub struct SqliteStorage {
     conn: Mutex<Connection>,
@@ -11,17 +11,19 @@ pub struct SqliteStorage {
 
 impl SqliteStorage {
     pub fn new(path: &str) -> Result<Self, AppError> {
-        let conn = Connection::open(path)
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        let storage = Self { conn: Mutex::new(conn) };
+        let conn = Connection::open(path).map_err(|e| AppError::Storage(e.to_string()))?;
+        let storage = Self {
+            conn: Mutex::new(conn),
+        };
         storage.init_tables()?;
         Ok(storage)
     }
 
     pub fn in_memory() -> Result<Self, AppError> {
-        let conn = Connection::open_in_memory()
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        let storage = Self { conn: Mutex::new(conn) };
+        let conn = Connection::open_in_memory().map_err(|e| AppError::Storage(e.to_string()))?;
+        let storage = Self {
+            conn: Mutex::new(conn),
+        };
         storage.init_tables()?;
         Ok(storage)
     }
@@ -84,10 +86,7 @@ impl SqliteStorage {
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn get_segments(
-        &self,
-        session_id: &str,
-    ) -> Result<Vec<Segment>, AppError> {
+    pub fn get_segments(&self, session_id: &str) -> Result<Vec<Segment>, AppError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
@@ -135,12 +134,18 @@ impl SessionStorage for SqliteStorage {
     fn end_session(&self, session_id: &str) -> Result<(), AppError> {
         let conn = self.lock_conn()?;
         let now = chrono::Utc::now().to_rfc3339();
-        conn.execute(
-            "UPDATE sessions SET ended_at = ?1, status = 'completed' \
-             WHERE id = ?2",
-            rusqlite::params![now, session_id],
-        )
-        .map_err(|e| AppError::Storage(e.to_string()))?;
+        let rows = conn
+            .execute(
+                "UPDATE sessions SET ended_at = ?1, status = 'completed' \
+                 WHERE id = ?2",
+                rusqlite::params![now, session_id],
+            )
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        if rows == 0 {
+            return Err(AppError::Storage(format!(
+                "session not found: {session_id}"
+            )));
+        }
         Ok(())
     }
 }
@@ -212,5 +217,12 @@ mod tests {
         assert_eq!(segments.len(), 3);
         assert!(segments[0].start_time < segments[1].start_time);
         assert!(segments[1].start_time < segments[2].start_time);
+    }
+
+    #[test]
+    fn end_nonexistent_session_errors() {
+        let storage = SqliteStorage::in_memory().unwrap();
+        let result = storage.end_session("nonexistent-id");
+        assert!(result.is_err());
     }
 }

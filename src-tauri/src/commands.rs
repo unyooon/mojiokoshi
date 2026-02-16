@@ -16,10 +16,7 @@ pub struct AppState {
 #[tauri::command]
 #[specta::specta]
 pub fn health_check() -> Result<String, AppError> {
-    Ok(format!(
-        "Backend v{} - ok",
-        env!("CARGO_PKG_VERSION")
-    ))
+    Ok(format!("Backend v{} - ok", env!("CARGO_PKG_VERSION")))
 }
 
 #[tauri::command]
@@ -75,10 +72,7 @@ pub fn get_capture_state(state: State<'_, AppState>) -> Result<CaptureState, App
 
 #[tauri::command]
 #[specta::specta]
-pub fn create_session(
-    state: State<'_, AppState>,
-    title: String,
-) -> Result<String, AppError> {
+pub fn create_session(state: State<'_, AppState>, title: String) -> Result<String, AppError> {
     let storage = state
         .storage
         .lock()
@@ -88,10 +82,7 @@ pub fn create_session(
 
 #[tauri::command]
 #[specta::specta]
-pub fn end_session(
-    state: State<'_, AppState>,
-    session_id: String,
-) -> Result<(), AppError> {
+pub fn end_session(state: State<'_, AppState>, session_id: String) -> Result<(), AppError> {
     let storage = state
         .storage
         .lock()
