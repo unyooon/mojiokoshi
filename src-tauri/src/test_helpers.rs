@@ -1,23 +1,31 @@
-use mockall::mock;
+//! Test utilities and mock helpers for the MojiOkoshi backend.
+//!
+//! This module provides common test setup functions and mock
+//! implementations using the mockall crate.
 
-use crate::audio::{AudioCapture, AudioConfig, CaptureState};
-use crate::error::AppError;
+#[cfg(test)]
+pub mod mocks {
+    use crate::audio::{AudioCapture, AudioConfig, CaptureState};
+    use crate::error::AppError;
+    use mockall::mock;
 
-mock! {
-    pub AudioCaptureImpl {}
-
-    impl AudioCapture for AudioCaptureImpl {
-        fn start(&mut self, config: &AudioConfig) -> Result<(), AppError>;
-        fn stop(&mut self) -> Result<(), AppError>;
-        fn pause(&mut self) -> Result<(), AppError>;
-        fn resume(&mut self) -> Result<(), AppError>;
-        fn state(&self) -> CaptureState;
+    mock! {
+        pub AudioCaptureImpl {}
+        impl AudioCapture for AudioCaptureImpl {
+            fn start(&mut self, config: &AudioConfig) -> Result<(), AppError>;
+            fn stop(&mut self) -> Result<(), AppError>;
+            fn pause(&mut self) -> Result<(), AppError>;
+            fn resume(&mut self) -> Result<(), AppError>;
+            fn state(&self) -> CaptureState;
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::mocks::MockAudioCaptureImpl;
+    use crate::audio::{AudioCapture, AudioConfig, CaptureState};
+    use crate::error::AppError;
 
     #[test]
     fn mock_audio_capture_start_stop() {
