@@ -6,7 +6,9 @@ use super::sqlite::SqliteStorage;
 impl SqliteStorage {
     pub fn insert_keyword(&self, session_id: &str, kw: &Keyword) -> Result<(), AppError> {
         let conn = self.lock_conn()?;
-        let kw_type = format!("{:?}", kw.keyword_type);
+        let kw_type_json = serde_json::to_string(&kw.keyword_type)
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        let kw_type = kw_type_json.trim_matches('"');
         conn.execute(
             "INSERT OR IGNORE INTO keywords \
              (id, session_id, term, type, definition, web_search_result, \

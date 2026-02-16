@@ -3,6 +3,7 @@ use specta::Type;
 
 /// Type of extracted keyword.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
 pub enum KeywordType {
     TechTerm,
     ProperNoun,
@@ -12,11 +13,12 @@ pub enum KeywordType {
 
 impl KeywordType {
     /// Parse from database TEXT column value.
+    /// Handles both snake_case (current) and PascalCase (legacy) formats.
     pub fn from_db_str(s: &str) -> Self {
         match s {
-            "ProperNoun" => Self::ProperNoun,
-            "Acronym" => Self::Acronym,
-            "Jargon" => Self::Jargon,
+            "proper_noun" | "ProperNoun" => Self::ProperNoun,
+            "acronym" | "Acronym" => Self::Acronym,
+            "jargon" | "Jargon" => Self::Jargon,
             _ => Self::TechTerm,
         }
     }
@@ -46,6 +48,7 @@ pub struct AiSummary {
 
 /// Priority level for action items.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
 pub enum Priority {
     High,
     Medium,

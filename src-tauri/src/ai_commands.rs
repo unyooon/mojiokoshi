@@ -47,9 +47,10 @@ pub fn start_ai_analysis(
 
 #[tauri::command]
 #[specta::specta]
-pub fn stop_ai_analysis(ai: State<'_, AiState>) -> Result<(), AppError> {
+pub fn stop_ai_analysis(ai: State<'_, AiState>, _session_id: String) -> Result<(), AppError> {
     let mut bp_guard = ai.batch_processor.lock().map_err(lock_err)?;
     *bp_guard = None;
+    ai.bridge.stop()?;
     Ok(())
 }
 

@@ -127,9 +127,9 @@ impl BatchProcessor {
             .collect::<Vec<_>>()
             .join(" ");
 
-        // Truncate to ~2000 chars for context compression
+        // Truncate to ~2000 bytes for context compression (UTF-8 safe)
         let truncated = if text.len() > 2000 {
-            format!("{}...", &text[..2000])
+            format!("{}...", truncate_utf8(&text, 2000))
         } else {
             text
         };
@@ -154,6 +154,19 @@ impl BatchProcessor {
         }
         Ok(())
     }
+}
+
+/// Truncate a UTF-8 string to at most `max_bytes` bytes without splitting
+/// a multi-byte character.
+fn truncate_utf8(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
 }
 
 /// Concatenate segment texts into a single transcript string.
