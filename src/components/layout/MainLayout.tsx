@@ -1,11 +1,8 @@
 import { useState, useCallback } from "react";
 import { TranscriptPanel } from "@/components/transcript/TranscriptPanel";
+import { InsightsPanel } from "@/components/insights/InsightsPanel";
 
-interface MainLayoutProps {
-  rightPanel?: React.ReactNode;
-}
-
-export function MainLayout({ rightPanel }: MainLayoutProps) {
+export function MainLayout() {
   const [splitPercent, setSplitPercent] = useState(60);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -43,11 +40,7 @@ export function MainLayout({ rightPanel }: MainLayoutProps) {
         onMouseDown={handleMouseDown}
       />
       <div className="flex-1 overflow-hidden">
-        {rightPanel ?? (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            AI Insights (coming soon)
-          </div>
-        )}
+        <InsightsPanel />
       </div>
     </div>
   );
