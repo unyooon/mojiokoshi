@@ -8,6 +8,9 @@ pub mod whisper;
 #[cfg(test)]
 pub mod test_helpers;
 
+#[cfg(test)]
+mod integration_tests;
+
 use tauri::Manager;
 
 use commands::{
