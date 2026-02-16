@@ -10,11 +10,11 @@ use super::types::{AiSummary, AnalysisBatchResult, BridgeRequest, BridgeResponse
 /// Bridge to the Node.js Claude Agent SDK sidecar process.
 /// Communicates via JSON-lines over stdin/stdout.
 pub struct ClaudeCodeBridge {
-    process: Mutex<Option<BridgeProcess>>,
-    is_stub: bool,
+    pub(crate) process: Mutex<Option<BridgeProcess>>,
+    pub(crate) is_stub: bool,
 }
 
-struct BridgeProcess {
+pub(crate) struct BridgeProcess {
     child: Child,
     writer: BufWriter<std::process::ChildStdin>,
     reader: BufReader<std::process::ChildStdout>,

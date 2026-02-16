@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use rusqlite::Connection;
 
 use super::{Segment, SessionStorage};
+use crate::claude::types::Keyword;
 use crate::error::AppError;
 
 pub struct SqliteStorage {
@@ -11,16 +12,14 @@ pub struct SqliteStorage {
 
 impl SqliteStorage {
     pub fn new(path: &str) -> Result<Self, AppError> {
-        let conn = Connection::open(path).map_err(|e| AppError::Storage(e.to_string()))?;
-        let storage = Self {
-            conn: Mutex::new(conn),
-        };
-        storage.init_tables()?;
-        Ok(storage)
+        Self::from_conn(Connection::open(path).map_err(|e| AppError::Storage(e.to_string()))?)
     }
 
     pub fn in_memory() -> Result<Self, AppError> {
-        let conn = Connection::open_in_memory().map_err(|e| AppError::Storage(e.to_string()))?;
+        Self::from_conn(Connection::open_in_memory().map_err(|e| AppError::Storage(e.to_string()))?)
+    }
+
+    fn from_conn(conn: Connection) -> Result<Self, AppError> {
         let storage = Self {
             conn: Mutex::new(conn),
         };
@@ -28,7 +27,7 @@ impl SqliteStorage {
         Ok(storage)
     }
 
-    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, AppError> {
+    pub(crate) fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, AppError> {
         self.conn
             .lock()
             .map_err(|e| AppError::Storage(format!("lock poisoned: {e}")))
@@ -37,30 +36,28 @@ impl SqliteStorage {
     fn init_tables(&self) -> Result<(), AppError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS sessions (
-                id TEXT PRIMARY KEY,
-                title TEXT,
-                started_at TEXT NOT NULL,
-                ended_at TEXT,
-                target_app TEXT,
-                whisper_model TEXT,
-                status TEXT DEFAULT 'active'
-            );
-            CREATE TABLE IF NOT EXISTS segments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL REFERENCES sessions(id),
-                speaker TEXT,
-                text TEXT NOT NULL,
-                start_time REAL NOT NULL,
-                end_time REAL NOT NULL,
-                confidence REAL,
-                is_partial INTEGER DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS idx_segments_session
-                ON segments(session_id);
-            CREATE INDEX IF NOT EXISTS idx_segments_time
-                ON segments(session_id, start_time);",
+            "CREATE TABLE IF NOT EXISTS sessions (\
+                id TEXT PRIMARY KEY, title TEXT, started_at TEXT NOT NULL, \
+                ended_at TEXT, target_app TEXT, whisper_model TEXT, \
+                status TEXT DEFAULT 'active');\
+            CREATE TABLE IF NOT EXISTS segments (\
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                session_id TEXT NOT NULL REFERENCES sessions(id), \
+                speaker TEXT, text TEXT NOT NULL, start_time REAL NOT NULL, \
+                end_time REAL NOT NULL, confidence REAL, \
+                is_partial INTEGER DEFAULT 0, \
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP);\
+            CREATE INDEX IF NOT EXISTS idx_segments_session ON segments(session_id);\
+            CREATE INDEX IF NOT EXISTS idx_segments_time ON segments(session_id, start_time);\
+            CREATE TABLE IF NOT EXISTS keywords (\
+                id TEXT PRIMARY KEY, \
+                session_id TEXT NOT NULL REFERENCES sessions(id), \
+                term TEXT NOT NULL, type TEXT NOT NULL, definition TEXT, \
+                web_search_result TEXT, source_url TEXT, \
+                first_seen_at REAL NOT NULL, occurrences INTEGER DEFAULT 1);\
+            CREATE INDEX IF NOT EXISTS idx_keywords_session ON keywords(session_id);\
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_keywords_term_session \
+                ON keywords(session_id, term);",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(())
@@ -84,6 +81,58 @@ impl SqliteStorage {
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(conn.last_insert_rowid())
+    }
+
+    pub fn insert_keyword(&self, session_id: &str, kw: &Keyword) -> Result<(), AppError> {
+        let conn = self.lock_conn()?;
+        let kw_type = format!("{:?}", kw.keyword_type);
+        conn.execute(
+            "INSERT OR IGNORE INTO keywords \
+             (id, session_id, term, type, definition, web_search_result, \
+              source_url, first_seen_at, occurrences) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                kw.id,
+                session_id,
+                kw.term,
+                kw_type,
+                kw.definition,
+                kw.web_search_result,
+                kw.source_url,
+                kw.first_seen_at,
+                kw.occurrences,
+            ],
+        )
+        .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn get_keyword_terms(&self, session_id: &str) -> Result<Vec<String>, AppError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
+            .prepare("SELECT term FROM keywords WHERE session_id = ?1")
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        let terms = stmt
+            .query_map(rusqlite::params![session_id], |row| row.get(0))
+            .map_err(|e| AppError::Storage(e.to_string()))?
+            .collect::<Result<Vec<String>, _>>()
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(terms)
+    }
+
+    pub fn increment_keyword_occurrence(
+        &self,
+        session_id: &str,
+        term: &str,
+    ) -> Result<(), AppError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "UPDATE keywords SET occurrences = occurrences + 1 \
+             WHERE session_id = ?1 AND term = ?2 COLLATE NOCASE",
+            rusqlite::params![session_id, term],
+        )
+        .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(())
     }
 
     pub fn get_segments(&self, session_id: &str) -> Result<Vec<Segment>, AppError> {
@@ -224,5 +273,82 @@ mod tests {
         let storage = SqliteStorage::in_memory().unwrap();
         let result = storage.end_session("nonexistent-id");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn insert_and_get_keywords() {
+        use crate::claude::types::{Keyword, KeywordType};
+        let storage = SqliteStorage::in_memory().unwrap();
+        let sid = storage.create_session("KW Test").unwrap();
+        let kw = Keyword {
+            id: "kw-1".to_string(),
+            term: "Rust".to_string(),
+            keyword_type: KeywordType::TechTerm,
+            definition: Some("A systems language".to_string()),
+            web_search_result: None,
+            source_url: None,
+            first_seen_at: 1000.0,
+            occurrences: 1,
+        };
+        storage.insert_keyword(&sid, &kw).unwrap();
+        let terms = storage.get_keyword_terms(&sid).unwrap();
+        assert_eq!(terms, vec!["Rust"]);
+    }
+
+    #[test]
+    fn increment_keyword_occurrence() {
+        use crate::claude::types::{Keyword, KeywordType};
+        let storage = SqliteStorage::in_memory().unwrap();
+        let sid = storage.create_session("KW Inc").unwrap();
+        let kw = Keyword {
+            id: "kw-2".to_string(),
+            term: "WebRTC".to_string(),
+            keyword_type: KeywordType::Acronym,
+            definition: None,
+            web_search_result: None,
+            source_url: None,
+            first_seen_at: 500.0,
+            occurrences: 1,
+        };
+        storage.insert_keyword(&sid, &kw).unwrap();
+        storage
+            .increment_keyword_occurrence(&sid, "WebRTC")
+            .unwrap();
+        // Verify via raw query that occurrences = 2
+        let conn = storage.lock_conn().unwrap();
+        let count: i32 = conn
+            .query_row(
+                "SELECT occurrences FROM keywords WHERE session_id = ?1 AND term = ?2",
+                rusqlite::params![sid, "WebRTC"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn duplicate_keyword_insert_ignored() {
+        use crate::claude::types::{Keyword, KeywordType};
+        let storage = SqliteStorage::in_memory().unwrap();
+        let sid = storage.create_session("Dup").unwrap();
+        let kw = Keyword {
+            id: "kw-3".to_string(),
+            term: "Docker".to_string(),
+            keyword_type: KeywordType::ProperNoun,
+            definition: None,
+            web_search_result: None,
+            source_url: None,
+            first_seen_at: 200.0,
+            occurrences: 1,
+        };
+        storage.insert_keyword(&sid, &kw).unwrap();
+        // Insert again with same session + term - should be ignored
+        let kw2 = Keyword {
+            id: "kw-3b".to_string(),
+            ..kw.clone()
+        };
+        storage.insert_keyword(&sid, &kw2).unwrap();
+        let terms = storage.get_keyword_terms(&sid).unwrap();
+        assert_eq!(terms.len(), 1);
     }
 }

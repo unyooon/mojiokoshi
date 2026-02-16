@@ -1,6 +1,8 @@
+pub mod batch;
 pub mod bridge;
 pub mod types;
 
+pub use batch::BatchProcessor;
 pub use bridge::ClaudeCodeBridge;
 pub use types::*;
 
