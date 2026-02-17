@@ -7,9 +7,18 @@ interface MeetingControlsProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  onExport?: () => void;
+  hasSession?: boolean;
 }
 
-export function MeetingControls({ onStart, onPause, onResume, onStop }: MeetingControlsProps) {
+export function MeetingControls({
+  onStart,
+  onPause,
+  onResume,
+  onStop,
+  onExport,
+  hasSession = false,
+}: MeetingControlsProps) {
   const [meetingState, setMeetingState] = useState<MeetingState>("idle");
   const [startTime, setStartTime] = useState<number | null>(null);
 
@@ -54,6 +63,14 @@ export function MeetingControls({ onStart, onPause, onResume, onStop }: MeetingC
       <Timer startTime={startTime} isRunning={isRecording} />
 
       <div className="flex items-center gap-1 ml-auto">
+        {isIdle && hasSession && onExport && (
+          <button
+            onClick={onExport}
+            className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          >
+            エクスポート
+          </button>
+        )}
         {isIdle ? (
           <button
             onClick={handleStart}
