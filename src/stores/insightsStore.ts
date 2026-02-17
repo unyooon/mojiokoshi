@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import type { AiKeyword, AiSummary, AiActionItem, Decision, InvestigationResult } from "@/types";
+import type {
+  AiKeyword,
+  AiSummary,
+  AiActionItem,
+  Decision,
+  InvestigationResult,
+  Topic,
+} from "@/types";
 
 interface InsightsState {
   keywords: AiKeyword[];
@@ -7,6 +14,7 @@ interface InsightsState {
   actionItems: AiActionItem[];
   decisions: Decision[];
   investigations: InvestigationResult[];
+  topics: Topic[];
   isAnalyzing: boolean;
 }
 
@@ -16,6 +24,7 @@ interface InsightsActions {
   addActionItems: (items: AiActionItem[]) => void;
   addDecisions: (decisions: Decision[]) => void;
   addInvestigation: (result: InvestigationResult) => void;
+  addTopics: (topics: Topic[]) => void;
   toggleActionItemComplete: (id: string) => void;
   setAnalyzing: (analyzing: boolean) => void;
   clearAll: () => void;
@@ -27,6 +36,7 @@ const initialState: InsightsState = {
   actionItems: [],
   decisions: [],
   investigations: [],
+  topics: [],
   isAnalyzing: false,
 };
 
@@ -76,6 +86,15 @@ export const useInsightsStore = create<InsightsState & InsightsActions>((set) =>
   addInvestigation: (result) => {
     set((state) => ({
       investigations: [...state.investigations, result],
+    }));
+  },
+
+  addTopics: (newTopics) => {
+    set((state) => ({
+      topics: [
+        ...state.topics,
+        ...newTopics.filter((t) => !state.topics.some((existing) => existing.id === t.id)),
+      ],
     }));
   },
 

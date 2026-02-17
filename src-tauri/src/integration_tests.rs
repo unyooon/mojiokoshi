@@ -761,4 +761,274 @@ mod tests {
 
         capture.stop().unwrap();
     }
+
+    // ── Phase 4: Search, Settings, Export Integration Tests ──────────
+
+    #[test]
+    fn test_fts5_search_returns_highlighted_results() {
+        let storage = SqliteStorage::in_memory().unwrap();
+        let session_id = storage.create_session("FTS Search Test").unwrap();
+
+        // Insert segments with distinct content
+        for (start, text) in [
+            (0.0, "Discussing the Rust programming language"),
+            (1.0, "WebRTC enables real-time communication"),
+            (2.0, "Rust and WebRTC work well together"),
+        ] {
+            storage
+                .insert_segment(&Segment {
+                    id: 0,
+                    session_id: session_id.clone(),
+                    speaker: Some("Alice".to_string()),
+                    text: text.to_string(),
+                    start_time: start,
+                    end_time: start + 1.0,
+                    confidence: Some(0.9),
+                    is_partial: false,
+                })
+                .unwrap();
+        }
+
+        // Search for "Rust" -- should match 2 segments
+        let results = storage.search_segments("Rust", None).unwrap();
+        assert_eq!(results.len(), 2);
+
+        // Verify highlighted text contains <mark> tags
+        for r in &results {
+            assert!(
+                r.highlighted.contains("<mark>Rust</mark>"),
+                "Expected highlighted text to contain <mark>Rust</mark>, got: {}",
+                r.highlighted
+            );
+        }
+
+        // Results should be ordered by start_time
+        assert!(results[0].start_time < results[1].start_time);
+    }
+
+    #[test]
+    fn test_settings_persistence_roundtrip() {
+        let storage = SqliteStorage::in_memory().unwrap();
+
+        // Setting should not exist initially
+        assert!(storage.get_setting("theme").unwrap().is_none());
+
+        // Set multiple settings
+        storage.set_setting("theme", "dark").unwrap();
+        storage.set_setting("language", "ja").unwrap();
+        storage.set_setting("whisper_model", "large-v3").unwrap();
+
+        // Read them back individually
+        assert_eq!(
+            storage.get_setting("theme").unwrap(),
+            Some("dark".to_string())
+        );
+        assert_eq!(
+            storage.get_setting("language").unwrap(),
+            Some("ja".to_string())
+        );
+        assert_eq!(
+            storage.get_setting("whisper_model").unwrap(),
+            Some("large-v3".to_string())
+        );
+
+        // Update a setting and verify it changed
+        storage.set_setting("theme", "light").unwrap();
+        assert_eq!(
+            storage.get_setting("theme").unwrap(),
+            Some("light".to_string())
+        );
+
+        // Verify get_all_settings returns the full map
+        let all = storage.get_all_settings().unwrap();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all.get("theme").map(String::as_str), Some("light"));
+        assert_eq!(all.get("language").map(String::as_str), Some("ja"));
+    }
+
+    #[test]
+    fn test_export_markdown_full_session() {
+        use crate::claude::types::{Keyword, KeywordType};
+        use crate::export::markdown::{generate_markdown, ExportOptions};
+
+        let storage = SqliteStorage::in_memory().unwrap();
+        let session_id = storage.create_session("Sprint Planning").unwrap();
+
+        // Add speakers
+        storage
+            .insert_speaker(&session_id, "Alice", "#ff0000")
+            .unwrap();
+        storage
+            .insert_speaker(&session_id, "Bob", "#00ff00")
+            .unwrap();
+
+        // Add segments
+        storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Alice".to_string()),
+                text: "Let's review the backlog.".to_string(),
+                start_time: 0.0,
+                end_time: 3.0,
+                confidence: Some(0.95),
+                is_partial: false,
+            })
+            .unwrap();
+        storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Bob".to_string()),
+                text: "I have three items to discuss.".to_string(),
+                start_time: 3.0,
+                end_time: 6.0,
+                confidence: Some(0.90),
+                is_partial: false,
+            })
+            .unwrap();
+
+        // Add keyword
+        let kw = Keyword {
+            id: "kw-1".to_string(),
+            term: "backlog".to_string(),
+            keyword_type: KeywordType::TechTerm,
+            definition: Some("A prioritized list of work items".to_string()),
+            web_search_result: None,
+            source_url: None,
+            first_seen_at: 0.0,
+            occurrences: 1,
+        };
+        storage.insert_keyword(&session_id, &kw).unwrap();
+
+        // Generate markdown with all sections enabled
+        let opts = ExportOptions {
+            session_id: session_id.clone(),
+            include_summary: true,
+            include_actions: true,
+            include_keywords: true,
+            include_transcript: true,
+        };
+        let result = generate_markdown(&storage, &opts).unwrap();
+
+        // Verify header
+        assert!(result.content.contains("# Meeting: Sprint Planning"));
+        assert!(result.content.contains("**Speakers:** Alice, Bob"));
+
+        // Verify sections present
+        assert!(result.content.contains("## Summary"));
+        assert!(result.content.contains("## Action Items"));
+        assert!(result.content.contains("## Keywords"));
+        assert!(result.content.contains("backlog"));
+        assert!(result.content.contains("## Transcript"));
+
+        // Verify transcript entries with timestamps
+        assert!(result
+            .content
+            .contains("**[00:00:00] Alice:** Let's review the backlog."));
+        assert!(result
+            .content
+            .contains("**[00:00:03] Bob:** I have three items to discuss."));
+
+        // Verify filename is a valid .md filename
+        assert!(result.filename.ends_with(".md"));
+        assert!(result.filename.contains("Sprint_Planning"));
+    }
+
+    #[test]
+    fn test_export_markdown_empty_session() {
+        use crate::export::markdown::{generate_markdown, ExportOptions};
+
+        let storage = SqliteStorage::in_memory().unwrap();
+        let session_id = storage.create_session("Empty Meeting").unwrap();
+
+        // Generate markdown with all sections enabled but no data
+        let opts = ExportOptions {
+            session_id: session_id.clone(),
+            include_summary: true,
+            include_actions: true,
+            include_keywords: true,
+            include_transcript: true,
+        };
+        let result = generate_markdown(&storage, &opts).unwrap();
+
+        // Header should still be present
+        assert!(result.content.contains("# Meeting: Empty Meeting"));
+
+        // Summary and actions show placeholders
+        assert!(result.content.contains("## Summary"));
+        assert!(result.content.contains("## Action Items"));
+
+        // No transcript or keywords sections (empty data)
+        assert!(!result.content.contains("## Transcript"));
+        assert!(!result.content.contains("## Keywords"));
+
+        // Filename is valid
+        assert!(result.filename.ends_with(".md"));
+    }
+
+    #[test]
+    fn test_search_with_session_filter() {
+        let storage = SqliteStorage::in_memory().unwrap();
+        let session_a = storage.create_session("Meeting A").unwrap();
+        let session_b = storage.create_session("Meeting B").unwrap();
+
+        // Insert segments containing "deployment" in both sessions
+        storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_a.clone(),
+                speaker: Some("Alice".to_string()),
+                text: "We need to plan the deployment.".to_string(),
+                start_time: 0.0,
+                end_time: 2.0,
+                confidence: Some(0.9),
+                is_partial: false,
+            })
+            .unwrap();
+        storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_b.clone(),
+                speaker: Some("Bob".to_string()),
+                text: "The deployment pipeline is ready.".to_string(),
+                start_time: 0.0,
+                end_time: 2.0,
+                confidence: Some(0.9),
+                is_partial: false,
+            })
+            .unwrap();
+        storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_b.clone(),
+                speaker: Some("Bob".to_string()),
+                text: "Let's start deployment tomorrow.".to_string(),
+                start_time: 2.0,
+                end_time: 4.0,
+                confidence: Some(0.9),
+                is_partial: false,
+            })
+            .unwrap();
+
+        // Unfiltered search should find all 3
+        let all = storage.search_segments("deployment", None).unwrap();
+        assert_eq!(all.len(), 3);
+
+        // Filter to session A -> 1 result
+        let filtered_a = storage
+            .search_segments("deployment", Some(&session_a))
+            .unwrap();
+        assert_eq!(filtered_a.len(), 1);
+        assert_eq!(filtered_a[0].session_id, session_a);
+
+        // Filter to session B -> 2 results
+        let filtered_b = storage
+            .search_segments("deployment", Some(&session_b))
+            .unwrap();
+        assert_eq!(filtered_b.len(), 2);
+        for r in &filtered_b {
+            assert_eq!(r.session_id, session_b);
+        }
+    }
 }

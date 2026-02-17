@@ -3,6 +3,7 @@ import { healthCheck } from "./bindings";
 import { MeetingControls } from "./components/meeting/MeetingControls";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
+import { ExportDialog } from "./components/meeting/ExportDialog";
 import { useTauriEvents } from "./hooks/useTauriEvents";
 import { useAiAnalysis } from "./hooks/useAiAnalysis";
 import { useSpeakerEvents } from "./hooks/useSpeakerEvents";
@@ -16,6 +17,7 @@ function App() {
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const theme = useSettingsStore((s) => s.settings.theme);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
@@ -82,6 +84,14 @@ function App() {
     setSettingsOpen(false);
   }, []);
 
+  const handleOpenExport = useCallback(() => {
+    setExportOpen(true);
+  }, []);
+
+  const handleCloseExport = useCallback(() => {
+    setExportOpen(false);
+  }, []);
+
   if (!isConnected) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -100,9 +110,12 @@ function App() {
         onPause={handlePause}
         onResume={handleResume}
         onStop={handleStop}
+        onExport={handleOpenExport}
+        hasSession={lastSessionId !== null}
       />
       <MainLayout sessionId={lastSessionId} />
       <SettingsDialog open={settingsOpen} onClose={handleCloseSettings} />
+      <ExportDialog open={exportOpen} onClose={handleCloseExport} sessionId={lastSessionId} />
     </div>
   );
 }
