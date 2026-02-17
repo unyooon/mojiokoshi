@@ -10,12 +10,15 @@ use crate::audio::{AudioBuffer, AudioCapture, AudioConfig, CaptureState};
 use crate::error::AppError;
 use crate::storage::sqlite::SqliteStorage;
 use crate::storage::SessionStorage;
+use crate::whisper::{SpeechRecognizer, VoiceActivityDetector, WhisperModelStatus};
 
 pub struct AppState {
     pub capture: Mutex<ScreenCaptureKitCapture>,
     pub storage: Arc<SqliteStorage>,
     pub pipeline_shutdown: Arc<AtomicBool>,
     pub pipeline_handle: Mutex<Option<JoinHandle<()>>>,
+    pub vad: Arc<dyn VoiceActivityDetector + Send + Sync>,
+    pub recognizer: Arc<dyn SpeechRecognizer + Send + Sync>,
 }
 
 fn lock_err<T: std::fmt::Display>(e: T) -> AppError {
@@ -41,7 +44,13 @@ pub fn start_audio_capture(
     capture.start(&config, sender)?;
 
     state.pipeline_shutdown.store(false, Ordering::Release);
-    let handle = spawn_pipeline(receiver, app_handle, Arc::clone(&state.pipeline_shutdown));
+    let handle = spawn_pipeline(
+        receiver,
+        app_handle,
+        Arc::clone(&state.pipeline_shutdown),
+        Arc::clone(&state.vad),
+        Arc::clone(&state.recognizer),
+    );
 
     let mut pipeline = state.pipeline_handle.lock().map_err(lock_err)?;
     *pipeline = Some(handle);
@@ -156,6 +165,34 @@ pub async fn focus_main_window(app: tauri::AppHandle) -> Result<(), AppError> {
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_whisper_model_status(
+    app: tauri::AppHandle,
+) -> Result<WhisperModelStatus, AppError> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::Config(e.to_string()))?;
+    Ok(crate::whisper::model::check_model(&data_dir, "base"))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn download_whisper_model(
+    app: tauri::AppHandle,
+    model: String,
+) -> Result<String, AppError> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::Config(e.to_string()))?;
+    let path = crate::whisper::model::download_model(&data_dir, &model, |_| {})?;
+    path.to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| AppError::Config("Invalid model path".to_string()))
 }
 
 #[cfg(test)]
