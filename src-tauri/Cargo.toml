@@ -28,6 +28,8 @@ dirs = "6"
 screencapturekit = "1.5"
 ort = "2.0.0-rc"
 ndarray = "0.17"
+whisper-rs = "0.13"
+hf-hub = "0.4"
 
 [dev-dependencies]
 mockall = "0.13"

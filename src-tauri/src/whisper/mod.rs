@@ -1,4 +1,6 @@
+pub mod model;
 pub mod pipeline;
+pub mod recognizer;
 pub mod silero_vad;
 pub mod stub;
 pub mod types;
