@@ -4,6 +4,7 @@ import { MeetingControls } from "./components/meeting/MeetingControls";
 import { MainLayout } from "./components/layout/MainLayout";
 import { useTauriEvents } from "./hooks/useTauriEvents";
 import { useAiAnalysis } from "./hooks/useAiAnalysis";
+import { useSpeakerEvents } from "./hooks/useSpeakerEvents";
 
 function App() {
   const [backendStatus, setBackendStatus] = useState<string>("Connecting...");
@@ -13,6 +14,7 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   useTauriEvents();
   useAiAnalysis(sessionId, isRecording);
+  useSpeakerEvents(isRecording);
 
   useEffect(() => {
     healthCheck()

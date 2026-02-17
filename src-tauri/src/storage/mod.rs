@@ -1,4 +1,5 @@
 pub mod keyword_store;
+pub mod speaker_store;
 pub mod sqlite;
 pub mod types;
 
