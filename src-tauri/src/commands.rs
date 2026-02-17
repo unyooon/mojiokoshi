@@ -75,7 +75,11 @@ pub fn end_session(state: State<'_, AppState>, session_id: String) -> Result<(),
 #[tauri::command]
 #[specta::specta]
 pub fn check_screen_capture_permission() -> Result<bool, AppError> {
-    Ok(true)
+    use screencapturekit::shareable_content::SCShareableContent;
+    match SCShareableContent::get() {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
 }
 
 #[tauri::command]
@@ -126,9 +130,11 @@ mod tests {
     }
 
     #[test]
-    fn test_check_screen_capture_permission_returns_true() {
+    #[ignore] // Requires macOS with screen capture permission
+    fn test_check_screen_capture_permission_returns_bool() {
         let result = check_screen_capture_permission();
         assert!(result.is_ok());
-        assert!(result.unwrap());
+        // Result is either true or false depending on permission state
+        let _has_permission: bool = result.unwrap();
     }
 }

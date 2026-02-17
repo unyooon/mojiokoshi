@@ -4,14 +4,51 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::audio::screen_capture::ScreenCaptureKitCapture;
     use crate::audio::{AudioBuffer, AudioCapture, AudioConfig, CaptureState};
     use crate::storage::{sqlite::SqliteStorage, Segment, SessionStorage};
+    use crate::test_helpers::mocks::MockAudioCaptureImpl;
     use crate::whisper::{
         pipeline::RingBuffer,
         stub::{StubRecognizer, StubVad},
         SpeechRecognizer, VoiceActivityDetector,
     };
+
+    fn mock_capture() -> MockAudioCaptureImpl {
+        use std::sync::atomic::{AtomicU8, Ordering};
+        use std::sync::Arc;
+
+        let state = Arc::new(AtomicU8::new(0));
+        let mut mock = MockAudioCaptureImpl::new();
+
+        let s = Arc::clone(&state);
+        mock.expect_start().returning(move |_, _| {
+            s.store(1, Ordering::Release);
+            Ok(())
+        });
+        let s = Arc::clone(&state);
+        mock.expect_stop().returning(move || {
+            s.store(0, Ordering::Release);
+            Ok(())
+        });
+        let s = Arc::clone(&state);
+        mock.expect_pause().returning(move || {
+            s.store(2, Ordering::Release);
+            Ok(())
+        });
+        let s = Arc::clone(&state);
+        mock.expect_resume().returning(move || {
+            s.store(1, Ordering::Release);
+            Ok(())
+        });
+        let s = Arc::clone(&state);
+        mock.expect_state()
+            .returning(move || match s.load(Ordering::Acquire) {
+                1 => CaptureState::Capturing,
+                2 => CaptureState::Paused,
+                _ => CaptureState::Idle,
+            });
+        mock
+    }
 
     fn dummy_sender() -> std::sync::mpsc::Sender<AudioBuffer> {
         let (sender, _receiver) = std::sync::mpsc::channel();
@@ -21,7 +58,7 @@ mod tests {
     #[test]
     fn test_capture_to_vad_pipeline() {
         // 1. Start capture
-        let mut capture = ScreenCaptureKitCapture::new();
+        let mut capture = mock_capture();
         let config = AudioConfig::default();
         capture.start(&config, dummy_sender()).unwrap();
         assert_eq!(capture.state(), CaptureState::Capturing);
@@ -103,7 +140,7 @@ mod tests {
     #[test]
     fn test_full_pipeline_simulation() {
         // Full pipeline: capture -> buffer -> VAD -> whisper -> storage
-        let mut capture = ScreenCaptureKitCapture::new();
+        let mut capture = mock_capture();
         let config = AudioConfig::default();
         let mut ring_buffer = RingBuffer::new(5.0, config.sample_rate);
         let vad = StubVad::default();
@@ -334,7 +371,7 @@ mod tests {
         use crate::claude::bridge::ClaudeCodeBridge;
         use std::sync::{Arc, Mutex};
 
-        let mut capture = ScreenCaptureKitCapture::new();
+        let mut capture = mock_capture();
         let config = AudioConfig::default();
         let mut ring_buffer = RingBuffer::new(5.0, config.sample_rate);
         let vad = StubVad::default();
@@ -739,7 +776,7 @@ mod tests {
 
     #[test]
     fn test_pause_resume_does_not_lose_data() {
-        let mut capture = ScreenCaptureKitCapture::new();
+        let mut capture = mock_capture();
         let config = AudioConfig::default();
         let mut ring_buffer = RingBuffer::new(5.0, config.sample_rate);
 
@@ -1462,5 +1499,14 @@ mod tests {
         assert_eq!(sentiments[1].emotion, "concerned");
         assert!((sentiments[1].score - (-0.4)).abs() < f64::EPSILON);
         assert!((sentiments[1].confidence - 0.88).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    #[ignore] // Requires macOS with screen capture permission
+    fn test_permission_check_returns_bool() {
+        let result = crate::commands::check_screen_capture_permission();
+        assert!(result.is_ok());
+        // Result is either true or false depending on permission state
+        let _has_permission: bool = result.unwrap();
     }
 }
