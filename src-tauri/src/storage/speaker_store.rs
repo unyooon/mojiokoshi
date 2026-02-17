@@ -130,7 +130,9 @@ mod tests {
     fn update_speaker_label() {
         let storage = SqliteStorage::in_memory().unwrap();
         let sid = storage.create_session("Rename").unwrap();
-        let id = storage.insert_speaker(&sid, "Speaker_0", "#00ff00").unwrap();
+        let id = storage
+            .insert_speaker(&sid, "Speaker_0", "#00ff00")
+            .unwrap();
         storage.update_speaker_label(&id, "Bob").unwrap();
         let speakers = storage.get_speakers(&sid).unwrap();
         assert_eq!(speakers[0].label, "Bob");
@@ -149,17 +151,25 @@ mod tests {
         let sid = storage.create_session("Assign").unwrap();
         let spk_id = storage.insert_speaker(&sid, "Alice", "#ff0000").unwrap();
         let seg = crate::storage::Segment {
-            id: 0, session_id: sid, speaker: Some("Unknown".into()),
-            text: "Hello".into(), start_time: 0.0, end_time: 1.0,
-            confidence: None, is_partial: false,
+            id: 0,
+            session_id: sid,
+            speaker: Some("Unknown".into()),
+            text: "Hello".into(),
+            start_time: 0.0,
+            end_time: 1.0,
+            confidence: None,
+            is_partial: false,
         };
         let seg_id = storage.insert_segment(&seg).unwrap();
         storage.update_segment_speaker(seg_id, &spk_id).unwrap();
         let conn = storage.lock_conn().unwrap();
-        let stored: String = conn.query_row(
-            "SELECT speaker_id FROM segments WHERE id = ?1",
-            rusqlite::params![seg_id], |row| row.get(0),
-        ).unwrap();
+        let stored: String = conn
+            .query_row(
+                "SELECT speaker_id FROM segments WHERE id = ?1",
+                rusqlite::params![seg_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(stored, spk_id);
     }
 
