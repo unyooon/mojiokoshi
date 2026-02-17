@@ -439,44 +439,64 @@ mod tests {
         let session_id = storage.create_session("Speaker Assignment Test").unwrap();
 
         // Insert transcript segments with known time ranges
-        let seg_ids: Vec<i64> = [(0.0, 3.0, "Hello everyone"),
-                                  (3.0, 7.0, "Let's discuss the agenda"),
-                                  (7.0, 12.0, "I agree with the plan"),
-                                  (12.0, 15.0, "Any questions?")]
-            .iter()
-            .map(|(start, end, text)| {
-                storage
-                    .insert_segment(&Segment {
-                        id: 0,
-                        session_id: session_id.clone(),
-                        speaker: None,
-                        text: text.to_string(),
-                        start_time: *start,
-                        end_time: *end,
-                        confidence: Some(0.9),
-                        is_partial: false,
-                    })
-                    .unwrap()
-            })
-            .collect();
+        let seg_ids: Vec<i64> = [
+            (0.0, 3.0, "Hello everyone"),
+            (3.0, 7.0, "Let's discuss the agenda"),
+            (7.0, 12.0, "I agree with the plan"),
+            (12.0, 15.0, "Any questions?"),
+        ]
+        .iter()
+        .map(|(start, end, text)| {
+            storage
+                .insert_segment(&Segment {
+                    id: 0,
+                    session_id: session_id.clone(),
+                    speaker: None,
+                    text: text.to_string(),
+                    start_time: *start,
+                    end_time: *end,
+                    confidence: Some(0.9),
+                    is_partial: false,
+                })
+                .unwrap()
+        })
+        .collect();
 
         // Create speakers
-        let spk_alice = storage.insert_speaker(&session_id, "Alice", "#ff0000").unwrap();
-        let spk_bob = storage.insert_speaker(&session_id, "Bob", "#00ff00").unwrap();
+        let spk_alice = storage
+            .insert_speaker(&session_id, "Alice", "#ff0000")
+            .unwrap();
+        let spk_bob = storage
+            .insert_speaker(&session_id, "Bob", "#00ff00")
+            .unwrap();
 
         // Simulate diarized segments with known time ranges
         use crate::diarization::DiarizedSegment;
         let diarized = vec![
-            DiarizedSegment { speaker: "SPEAKER_0".to_string(), start: 0.0, end: 6.0 },
-            DiarizedSegment { speaker: "SPEAKER_1".to_string(), start: 6.0, end: 14.0 },
-            DiarizedSegment { speaker: "SPEAKER_0".to_string(), start: 14.0, end: 16.0 },
+            DiarizedSegment {
+                speaker: "SPEAKER_0".to_string(),
+                start: 0.0,
+                end: 6.0,
+            },
+            DiarizedSegment {
+                speaker: "SPEAKER_1".to_string(),
+                start: 6.0,
+                end: 14.0,
+            },
+            DiarizedSegment {
+                speaker: "SPEAKER_0".to_string(),
+                start: 14.0,
+                end: 16.0,
+            },
         ];
 
         // Map diarized speaker labels to our speaker IDs
         let speaker_map: std::collections::HashMap<String, String> = [
             ("SPEAKER_0".to_string(), spk_alice.clone()),
             ("SPEAKER_1".to_string(), spk_bob.clone()),
-        ].into_iter().collect();
+        ]
+        .into_iter()
+        .collect();
 
         // For each transcript segment, find the diarized segment with most overlap
         let segments = storage.get_segments(&session_id).unwrap();
@@ -500,16 +520,19 @@ mod tests {
 
         // Verify assignments by reading speaker_id from DB
         let conn = storage.lock_conn().unwrap();
-        let assigned: Vec<(i64, String)> = seg_ids.iter().map(|id| {
-            let spk: String = conn
-                .query_row(
-                    "SELECT speaker_id FROM segments WHERE id = ?1",
-                    rusqlite::params![id],
-                    |row| row.get(0),
-                )
-                .unwrap();
-            (*id, spk)
-        }).collect();
+        let assigned: Vec<(i64, String)> = seg_ids
+            .iter()
+            .map(|id| {
+                let spk: String = conn
+                    .query_row(
+                        "SELECT speaker_id FROM segments WHERE id = ?1",
+                        rusqlite::params![id],
+                        |row| row.get(0),
+                    )
+                    .unwrap();
+                (*id, spk)
+            })
+            .collect();
         drop(conn);
 
         // seg 0 (0.0-3.0) overlaps SPEAKER_0 (0-6) -> Alice
@@ -529,7 +552,9 @@ mod tests {
         let session_id = storage.create_session("Speaker CRUD Test").unwrap();
 
         // Insert speaker and verify with get_speakers
-        let spk_id = storage.insert_speaker(&session_id, "Speaker_0", "#3b82f6").unwrap();
+        let spk_id = storage
+            .insert_speaker(&session_id, "Speaker_0", "#3b82f6")
+            .unwrap();
         assert!(!spk_id.is_empty());
         let speakers = storage.get_speakers(&session_id).unwrap();
         assert_eq!(speakers.len(), 1);
@@ -571,7 +596,9 @@ mod tests {
         drop(conn);
 
         // Add a second speaker and verify both exist
-        let spk_id2 = storage.insert_speaker(&session_id, "Bob", "#22c55e").unwrap();
+        let spk_id2 = storage
+            .insert_speaker(&session_id, "Bob", "#22c55e")
+            .unwrap();
         let speakers = storage.get_speakers(&session_id).unwrap();
         assert_eq!(speakers.len(), 2);
 
@@ -594,8 +621,12 @@ mod tests {
         let session_id = storage.create_session("Minutes with Speakers").unwrap();
 
         // Create speakers
-        let alice_id = storage.insert_speaker(&session_id, "Alice", "#ff0000").unwrap();
-        let bob_id = storage.insert_speaker(&session_id, "Bob", "#00ff00").unwrap();
+        let alice_id = storage
+            .insert_speaker(&session_id, "Alice", "#ff0000")
+            .unwrap();
+        let bob_id = storage
+            .insert_speaker(&session_id, "Bob", "#00ff00")
+            .unwrap();
 
         // Insert segments
         let seg1_id = storage
