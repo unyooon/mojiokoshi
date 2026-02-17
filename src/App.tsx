@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { healthCheck } from "./bindings";
+import { commands } from "./bindings";
 import { MeetingControls } from "./components/meeting/MeetingControls";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
@@ -32,10 +32,15 @@ function App() {
   }, [loadSettings]);
 
   useEffect(() => {
-    healthCheck()
-      .then((status) => {
-        setBackendStatus(status);
-        setIsConnected(true);
+    commands
+      .healthCheck()
+      .then((result) => {
+        if (result.status === "ok") {
+          setBackendStatus(result.data);
+          setIsConnected(true);
+        } else {
+          setBackendStatus(`Error: ${JSON.stringify(result.error)}`);
+        }
       })
       .catch((err: unknown) => {
         setBackendStatus(`Error: ${String(err)}`);
