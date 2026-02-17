@@ -11,7 +11,6 @@ function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [minutes, setMinutes] = useState<string | null>(null);
   const [isGeneratingMinutes, setIsGeneratingMinutes] = useState(false);
 
   useTauriEvents();
@@ -33,7 +32,6 @@ function App() {
     setSessionId(id);
     setLastSessionId(id);
     setIsRecording(true);
-    setMinutes(null);
     // Will invoke Tauri command
   }, []);
 
@@ -58,8 +56,7 @@ function App() {
     setIsGeneratingMinutes(true);
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      const result = await invoke<string>("generate_minutes", { sessionId: lastSessionId });
-      setMinutes(result);
+      await invoke<string>("generate_minutes", { sessionId: lastSessionId });
     } catch {
       // Tauri API not available (browser dev mode)
     } finally {
@@ -88,12 +85,7 @@ function App() {
         onGenerateMinutes={() => void handleGenerateMinutes()}
         hasSession={!!lastSessionId}
       />
-      <MainLayout
-        sessionId={lastSessionId}
-        minutes={minutes}
-        isGeneratingMinutes={isGeneratingMinutes}
-        onGenerateMinutes={() => void handleGenerateMinutes()}
-      />
+      <MainLayout sessionId={lastSessionId} />
     </div>
   );
 }

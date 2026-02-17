@@ -4,17 +4,9 @@ import { InsightsPanel } from "@/components/insights/InsightsPanel";
 
 interface MainLayoutProps {
   sessionId?: string | null;
-  minutes?: string | null;
-  isGeneratingMinutes?: boolean;
-  onGenerateMinutes?: () => void;
 }
 
-export function MainLayout({
-  sessionId = null,
-  minutes = null,
-  isGeneratingMinutes = false,
-  onGenerateMinutes,
-}: MainLayoutProps) {
+export function MainLayout({ sessionId = null }: MainLayoutProps) {
   const [splitPercent, setSplitPercent] = useState(60);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -52,12 +44,7 @@ export function MainLayout({
         onMouseDown={handleMouseDown}
       />
       <div className="flex-1 overflow-hidden">
-        <InsightsPanel
-          sessionId={sessionId}
-          minutes={minutes}
-          isGeneratingMinutes={isGeneratingMinutes}
-          onGenerateMinutes={onGenerateMinutes}
-        />
+        <InsightsPanel sessionId={sessionId} />
       </div>
     </div>
   );

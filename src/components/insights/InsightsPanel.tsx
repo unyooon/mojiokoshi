@@ -28,17 +28,9 @@ const sectionComponents: Record<string, React.ComponentType> = {
 
 interface InsightsPanelProps {
   sessionId?: string | null;
-  minutes?: string | null;
-  isGeneratingMinutes?: boolean;
-  onGenerateMinutes?: () => void;
 }
 
-export function InsightsPanel({
-  sessionId = null,
-  minutes = null,
-  isGeneratingMinutes = false,
-  onGenerateMinutes,
-}: InsightsPanelProps) {
+export function InsightsPanel({ sessionId = null }: InsightsPanelProps) {
   const [active, setActive] = useState<Section>("summary");
   const isAnalyzing = useInsightsStore((s) => s.isAnalyzing);
 
@@ -70,12 +62,7 @@ export function InsightsPanel({
       </div>
       <div className="flex-1 overflow-y-auto">
         {active === "minutes" ? (
-          <MinutesPanel
-            sessionId={sessionId}
-            minutes={minutes}
-            isGenerating={isGeneratingMinutes}
-            onGenerate={onGenerateMinutes}
-          />
+          <MinutesPanel sessionId={sessionId} />
         ) : (
           (() => {
             const ActiveComponent = sectionComponents[active];
