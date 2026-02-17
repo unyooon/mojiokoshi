@@ -60,3 +60,45 @@ export interface Topic {
   timestamp: number;
   keywords: string[];
 }
+
+export interface DictionaryKeyword {
+  id: number;
+  term: string;
+  reading: string | null;
+  definition: string | null;
+  category: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TranslationEntry {
+  id: number;
+  session_id: string;
+  segment_id: number;
+  source_lang: string;
+  target_lang: string;
+  source_text: string;
+  translated_text: string;
+  created_at: string;
+}
+
+export interface SentimentEntry {
+  id: number;
+  session_id: string;
+  segment_id: number;
+  score: number;
+  emotion: string;
+  confidence: number;
+  timestamp: number;
+  created_at: string;
+}
+
+export interface MeetingLink {
+  id: number;
+  session_id: string;
+  related_session_id: string;
+  related_title: string;
+  similarity_score: number;
+  shared_keywords: string[];
+  created_at: string;
+}

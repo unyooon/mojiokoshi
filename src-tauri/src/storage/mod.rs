@@ -1,8 +1,12 @@
+pub mod keyword_dictionary_store;
 pub mod keyword_store;
+pub mod meeting_link_store;
 pub mod search_store;
+pub mod sentiment_store;
 pub mod settings_store;
 pub mod speaker_store;
 pub mod sqlite;
+pub mod translation_store;
 pub mod types;
 
 pub use types::*;
