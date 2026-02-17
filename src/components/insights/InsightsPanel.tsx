@@ -4,16 +4,25 @@ import { SummaryCard } from "./SummaryCard";
 import { KeywordList } from "./KeywordList";
 import { ActionItemList } from "./ActionItemList";
 import { DecisionList } from "./DecisionList";
+import { SpeakerPanel } from "./SpeakerPanel";
 import { InvestigationPanel } from "./InvestigationPanel";
 import { MinutesPanel } from "./MinutesPanel";
 
-type Section = "summary" | "keywords" | "actions" | "decisions" | "investigation" | "minutes";
+type Section =
+  | "summary"
+  | "keywords"
+  | "actions"
+  | "decisions"
+  | "speakers"
+  | "investigation"
+  | "minutes";
 
 const sections: { key: Section; label: string }[] = [
   { key: "summary", label: "サマリー" },
   { key: "keywords", label: "キーワード" },
   { key: "actions", label: "アクション" },
   { key: "decisions", label: "決定事項" },
+  { key: "speakers", label: "話者" },
   { key: "investigation", label: "調査" },
   { key: "minutes", label: "議事録" },
 ];
@@ -23,6 +32,7 @@ const sectionComponents: Record<string, React.ComponentType> = {
   keywords: KeywordList,
   actions: ActionItemList,
   decisions: DecisionList,
+  speakers: SpeakerPanel,
   investigation: InvestigationPanel,
 };
 

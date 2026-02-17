@@ -59,6 +59,10 @@ impl SqliteStorage {
                 ON keywords(session_id, term);",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
+        // Release the connection lock before calling init_speaker_tables
+        // which also acquires it.
+        drop(conn);
+        self.init_speaker_tables()?;
         Ok(())
     }
 
