@@ -8,6 +8,10 @@ import { SpeakerPanel } from "./SpeakerPanel";
 import { InvestigationPanel } from "./InvestigationPanel";
 import { MinutesPanel } from "./MinutesPanel";
 import { TopicTimeline } from "./TopicTimeline";
+import { TranslationPanel } from "./TranslationPanel";
+import { SentimentChart } from "./SentimentChart";
+import { MeetingLinksPanel } from "./MeetingLinksPanel";
+import { KeywordDictionaryPanel } from "./KeywordDictionaryPanel";
 
 type Section =
   | "summary"
@@ -17,7 +21,11 @@ type Section =
   | "speakers"
   | "investigation"
   | "timeline"
-  | "minutes";
+  | "minutes"
+  | "translation"
+  | "sentiment"
+  | "links"
+  | "dictionary";
 
 const sections: { key: Section; label: string }[] = [
   { key: "summary", label: "サマリー" },
@@ -28,6 +36,10 @@ const sections: { key: Section; label: string }[] = [
   { key: "investigation", label: "調査" },
   { key: "timeline", label: "タイムライン" },
   { key: "minutes", label: "議事録" },
+  { key: "translation", label: "翻訳" },
+  { key: "sentiment", label: "感情" },
+  { key: "links", label: "関連会議" },
+  { key: "dictionary", label: "辞書" },
 ];
 
 const sectionComponents: Record<string, React.ComponentType> = {
@@ -38,6 +50,18 @@ const sectionComponents: Record<string, React.ComponentType> = {
   speakers: SpeakerPanel,
   investigation: InvestigationPanel,
   timeline: TopicTimeline,
+  dictionary: KeywordDictionaryPanel,
+};
+
+const sessionIdSections = new Set(["minutes", "translation", "sentiment", "links"]);
+
+type SessionIdComponent = React.ComponentType<{ sessionId: string | null }>;
+
+const sessionIdComponents: Record<string, SessionIdComponent> = {
+  minutes: MinutesPanel,
+  translation: TranslationPanel,
+  sentiment: SentimentChart,
+  links: MeetingLinksPanel,
 };
 
 interface InsightsPanelProps {
@@ -56,7 +80,7 @@ export function InsightsPanel({ sessionId = null }: InsightsPanelProps) {
           <span className="text-xs text-muted-foreground animate-pulse">AI分析中...</span>
         )}
       </div>
-      <div className="flex border-b border-border">
+      <div className="flex flex-wrap border-b border-border">
         {sections.map((s) => (
           <button
             key={s.key}
@@ -64,7 +88,7 @@ export function InsightsPanel({ sessionId = null }: InsightsPanelProps) {
             onClick={() => {
               setActive(s.key);
             }}
-            className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors ${
+            className={`px-2 py-1.5 text-xs font-medium transition-colors ${
               active === s.key
                 ? "text-primary border-b-2 border-primary"
                 : "text-muted-foreground hover:text-foreground"
@@ -75,14 +99,15 @@ export function InsightsPanel({ sessionId = null }: InsightsPanelProps) {
         ))}
       </div>
       <div className="flex-1 overflow-y-auto">
-        {active === "minutes" ? (
-          <MinutesPanel sessionId={sessionId} />
-        ) : (
-          (() => {
-            const ActiveComponent = sectionComponents[active];
-            return <ActiveComponent />;
-          })()
-        )}
+        {sessionIdSections.has(active)
+          ? (() => {
+              const Comp = sessionIdComponents[active];
+              return <Comp sessionId={sessionId} />;
+            })()
+          : (() => {
+              const Comp = sectionComponents[active];
+              return <Comp />;
+            })()}
       </div>
     </div>
   );

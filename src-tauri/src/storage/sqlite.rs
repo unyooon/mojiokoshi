@@ -68,6 +68,7 @@ impl SqliteStorage {
         self.init_sentiment_tables()?;
         self.init_translation_tables()?;
         self.init_meeting_link_tables()?;
+        self.init_keyword_dictionary_tables()?;
         Ok(())
     }
 

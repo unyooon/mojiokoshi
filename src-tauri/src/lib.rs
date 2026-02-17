@@ -7,6 +7,7 @@ pub mod diarization_commands;
 pub mod error;
 pub mod export;
 pub mod export_commands;
+pub mod keyword_dictionary_commands;
 pub mod meeting_link_commands;
 pub mod search_commands;
 pub mod sentiment_commands;
@@ -37,6 +38,10 @@ use diarization_commands::{
 };
 use error::AppError;
 use export_commands::{export_markdown, save_export_file};
+use keyword_dictionary_commands::{
+    add_dictionary_keyword, delete_dictionary_keyword, get_all_dictionary_keywords,
+    update_dictionary_keyword,
+};
 use meeting_link_commands::{find_related_meetings, get_meeting_links};
 use search_commands::{get_all_settings, get_setting, search_transcripts, set_setting};
 use sentiment_commands::{analyze_sentiment, get_sentiments};
@@ -82,6 +87,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             get_meeting_links,
             analyze_sentiment,
             get_sentiments,
+            add_dictionary_keyword,
+            update_dictionary_keyword,
+            delete_dictionary_keyword,
+            get_all_dictionary_keywords,
         ]);
 
     #[cfg(debug_assertions)]
