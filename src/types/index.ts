@@ -1,17 +1,14 @@
 // AI analysis types
 export * from "./ai";
 
+// Speaker types
+export * from "./speaker";
+
 // Meeting state
 export type MeetingState = "idle" | "recording" | "paused" | "processing" | "review";
 
-// Speaker
-export interface Speaker {
-  id: string;
-  name: string;
-  color: SpeakerColor;
-}
-
-export interface SpeakerColor {
+// Speaker color style (used by TranscriptEntry for inline styling)
+export interface SpeakerColorStyle {
   bg: string;
   text: string;
   border: string;
@@ -23,7 +20,7 @@ export interface TranscriptEntry {
   timestamp: number;
   speakerId: string;
   speakerName: string;
-  speakerColor: SpeakerColor;
+  speakerColor: SpeakerColorStyle;
   text: string;
   keywords: Keyword[];
   isPartial: boolean;

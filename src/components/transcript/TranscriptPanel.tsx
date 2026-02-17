@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranscriptStore } from "@/stores/transcriptStore";
 import { useInsightsStore } from "@/stores/insightsStore";
+import { useSpeakerStore } from "@/stores/speakerStore";
 import { SegmentLine } from "./SegmentLine";
 import { TranscriptContextMenu } from "./TranscriptContextMenu";
 
@@ -10,6 +11,7 @@ export function TranscriptPanel() {
   const partialEntry = useTranscriptStore((s) => s.partialEntry);
   const autoScroll = useTranscriptStore((s) => s.autoScroll);
   const keywords = useInsightsStore((s) => s.keywords);
+  const speakers = useSpeakerStore((s) => s.speakers);
 
   const allEntries = partialEntry ? [...entries, partialEntry] : entries;
   const parentRef = useRef<HTMLDivElement>(null);
@@ -56,7 +58,11 @@ export function TranscriptPanel() {
                   data-index={virtualRow.index}
                   ref={virtualizer.measureElement}
                 >
-                  <SegmentLine entry={entry} keywords={keywords} />
+                  <SegmentLine
+                    entry={entry}
+                    keywords={keywords}
+                    speaker={speakers.get(entry.speakerId)}
+                  />
                 </div>
               );
             })}
