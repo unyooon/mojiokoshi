@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
 use crate::audio::screen_capture::ScreenCaptureKitCapture;
-use crate::audio::{AudioCapture, AudioConfig, CaptureState};
+use crate::audio::{AudioBuffer, AudioCapture, AudioConfig, CaptureState};
 use crate::error::AppError;
 use crate::storage::sqlite::SqliteStorage;
 use crate::storage::SessionStorage;
@@ -28,7 +28,8 @@ pub fn health_check() -> Result<String, AppError> {
 pub fn start_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
     let mut capture = state.capture.lock().map_err(lock_err)?;
     let config = AudioConfig::default();
-    capture.start(&config)
+    let (sender, _receiver) = std::sync::mpsc::channel::<AudioBuffer>();
+    capture.start(&config, sender)
 }
 
 #[tauri::command]
