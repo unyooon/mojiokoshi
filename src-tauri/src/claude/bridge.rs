@@ -149,6 +149,16 @@ impl ClaudeCodeBridge {
             "generate_minutes" => serde_json::json!({
                 "markdown": "# Meeting Minutes (Stub)\n\nNo content."
             }),
+            "translate" => {
+                let text = request
+                    .payload
+                    .get("text")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                serde_json::json!({
+                    "translated_text": format!("[Translation] {text}")
+                })
+            }
             other => {
                 return Err(AppError::AiAnalysis(format!(
                     "Unknown request type: {other}"
