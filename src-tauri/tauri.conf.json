@@ -19,6 +19,18 @@
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false
+      },
+      {
+        "label": "mini-view",
+        "title": "MojiOkoshi Mini",
+        "url": "mini.html",
+        "width": 400,
+        "height": 250,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "resizable": false,
+        "visible": false,
+        "transparent": true
       }
     ],
     "security": {
