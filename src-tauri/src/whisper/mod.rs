@@ -1,4 +1,5 @@
 pub mod pipeline;
+pub mod silero_vad;
 pub mod stub;
 pub mod types;
 
