@@ -2,9 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { healthCheck } from "./bindings";
 import { MeetingControls } from "./components/meeting/MeetingControls";
 import { MainLayout } from "./components/layout/MainLayout";
+import { SettingsDialog } from "./components/settings/SettingsDialog";
 import { useTauriEvents } from "./hooks/useTauriEvents";
 import { useAiAnalysis } from "./hooks/useAiAnalysis";
 import { useSpeakerEvents } from "./hooks/useSpeakerEvents";
+import { useTheme } from "./hooks/useTheme";
+import { useSettingsStore } from "./stores/settingsStore";
 
 function App() {
   const [backendStatus, setBackendStatus] = useState<string>("Connecting...");
@@ -12,9 +15,19 @@ function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const theme = useSettingsStore((s) => s.settings.theme);
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
+
+  useTheme(theme);
   useTauriEvents();
   useAiAnalysis(sessionId, isRecording);
   useSpeakerEvents(isRecording);
+
+  useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
 
   useEffect(() => {
     healthCheck()
@@ -25,6 +38,20 @@ function App() {
       .catch((err: unknown) => {
         setBackendStatus(`Error: ${String(err)}`);
       });
+  }, []);
+
+  // Cmd+, keyboard shortcut to toggle settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const handleStart = useCallback(() => {
@@ -51,6 +78,10 @@ function App() {
     // Will invoke Tauri command
   }, []);
 
+  const handleCloseSettings = useCallback(() => {
+    setSettingsOpen(false);
+  }, []);
+
   if (!isConnected) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -71,6 +102,7 @@ function App() {
         onStop={handleStop}
       />
       <MainLayout sessionId={lastSessionId} />
+      <SettingsDialog open={settingsOpen} onClose={handleCloseSettings} />
     </div>
   );
 }
