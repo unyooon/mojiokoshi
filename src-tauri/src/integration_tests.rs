@@ -1031,4 +1031,421 @@ mod tests {
             assert_eq!(r.session_id, session_b);
         }
     }
+
+    // ── Phase 5: Translation, Sentiment, Meeting Links, Dictionary ──
+
+    #[test]
+    fn test_translation_store_roundtrip() {
+        let storage = SqliteStorage::in_memory().unwrap();
+        let session_id = storage.create_session("Translation Roundtrip").unwrap();
+
+        // Insert 2 segments
+        let seg1_id = storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Alice".to_string()),
+                text: "Today we discuss the architecture.".to_string(),
+                start_time: 0.0,
+                end_time: 3.0,
+                confidence: Some(0.95),
+                is_partial: false,
+            })
+            .unwrap();
+        let seg2_id = storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Bob".to_string()),
+                text: "I agree with the proposal.".to_string(),
+                start_time: 3.0,
+                end_time: 5.0,
+                confidence: Some(0.90),
+                is_partial: false,
+            })
+            .unwrap();
+
+        // Insert translations for both segments into Japanese
+        storage
+            .insert_translation(
+                &session_id,
+                seg1_id,
+                "en",
+                "ja",
+                "Today we discuss the architecture.",
+                "今日はアーキテクチャについて議論します。",
+            )
+            .unwrap();
+        storage
+            .insert_translation(
+                &session_id,
+                seg2_id,
+                "en",
+                "ja",
+                "I agree with the proposal.",
+                "その提案に同意します。",
+            )
+            .unwrap();
+
+        // Also insert a French translation for seg1 to test filtering
+        storage
+            .insert_translation(
+                &session_id,
+                seg1_id,
+                "en",
+                "fr",
+                "Today we discuss the architecture.",
+                "Aujourd'hui, nous discutons de l'architecture.",
+            )
+            .unwrap();
+
+        // Get translations filtered by target_lang "ja"
+        let ja_translations = storage.get_translations(&session_id, "ja").unwrap();
+        assert_eq!(ja_translations.len(), 2);
+        assert_eq!(
+            ja_translations[0].translated_text,
+            "今日はアーキテクチャについて議論します。"
+        );
+        assert_eq!(ja_translations[1].translated_text, "その提案に同意します。");
+        // Verify ordering by segment_id
+        assert!(ja_translations[0].segment_id < ja_translations[1].segment_id);
+
+        // French filter should return only 1
+        let fr_translations = storage.get_translations(&session_id, "fr").unwrap();
+        assert_eq!(fr_translations.len(), 1);
+        assert_eq!(fr_translations[0].target_lang, "fr");
+
+        // Non-existent language returns empty
+        let de_translations = storage.get_translations(&session_id, "de").unwrap();
+        assert!(de_translations.is_empty());
+    }
+
+    #[test]
+    fn test_sentiment_store_lifecycle() {
+        use crate::storage::sentiment_store::SentimentEntry;
+
+        let storage = SqliteStorage::in_memory().unwrap();
+        let session_id = storage.create_session("Sentiment Lifecycle").unwrap();
+
+        // Insert 3 segments
+        let seg1_id = storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Alice".to_string()),
+                text: "This is great news!".to_string(),
+                start_time: 0.0,
+                end_time: 2.0,
+                confidence: Some(0.95),
+                is_partial: false,
+            })
+            .unwrap();
+        let seg2_id = storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Bob".to_string()),
+                text: "I have some concerns.".to_string(),
+                start_time: 2.0,
+                end_time: 4.0,
+                confidence: Some(0.90),
+                is_partial: false,
+            })
+            .unwrap();
+        let seg3_id = storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Alice".to_string()),
+                text: "Let me address those.".to_string(),
+                start_time: 4.0,
+                end_time: 6.0,
+                confidence: Some(0.88),
+                is_partial: false,
+            })
+            .unwrap();
+
+        // Insert sentiments (intentionally out of timestamp order)
+        let entries = vec![
+            SentimentEntry {
+                id: 0,
+                session_id: session_id.clone(),
+                segment_id: seg3_id,
+                score: 0.2,
+                emotion: "neutral".to_string(),
+                confidence: 0.80,
+                timestamp: 4.0,
+                created_at: String::new(),
+            },
+            SentimentEntry {
+                id: 0,
+                session_id: session_id.clone(),
+                segment_id: seg1_id,
+                score: 0.9,
+                emotion: "excited".to_string(),
+                confidence: 0.95,
+                timestamp: 0.0,
+                created_at: String::new(),
+            },
+            SentimentEntry {
+                id: 0,
+                session_id: session_id.clone(),
+                segment_id: seg2_id,
+                score: -0.6,
+                emotion: "concerned".to_string(),
+                confidence: 0.85,
+                timestamp: 2.0,
+                created_at: String::new(),
+            },
+        ];
+        for entry in &entries {
+            storage.insert_sentiment(entry).unwrap();
+        }
+
+        // Get sentiments and verify ordering by timestamp
+        let sentiments = storage.get_sentiments(&session_id).unwrap();
+        assert_eq!(sentiments.len(), 3);
+        assert!(sentiments[0].timestamp < sentiments[1].timestamp);
+        assert!(sentiments[1].timestamp < sentiments[2].timestamp);
+        // First by timestamp should be the "excited" one (timestamp 0.0)
+        assert_eq!(sentiments[0].emotion, "excited");
+        assert!((sentiments[0].score - 0.9).abs() < f64::EPSILON);
+        // Second should be "concerned" (timestamp 2.0)
+        assert_eq!(sentiments[1].emotion, "concerned");
+        // Third should be "neutral" (timestamp 4.0)
+        assert_eq!(sentiments[2].emotion, "neutral");
+
+        // Delete all sentiments
+        let deleted = storage.delete_sentiments(&session_id).unwrap();
+        assert_eq!(deleted, 3);
+
+        // Verify empty
+        let after_delete = storage.get_sentiments(&session_id).unwrap();
+        assert!(after_delete.is_empty());
+    }
+
+    #[test]
+    fn test_meeting_linking_with_keyword_overlap() {
+        use crate::claude::types::{Keyword, KeywordType};
+
+        let storage = SqliteStorage::in_memory().unwrap();
+        let s1 = storage.create_session("Architecture Review").unwrap();
+        let s2 = storage.create_session("Sprint Planning").unwrap();
+        let s3 = storage.create_session("Unrelated Meeting").unwrap();
+
+        // Helper to create keywords
+        let make_kw = |id: &str, term: &str| Keyword {
+            id: id.to_string(),
+            term: term.to_string(),
+            keyword_type: KeywordType::TechTerm,
+            definition: None,
+            web_search_result: None,
+            source_url: None,
+            first_seen_at: 0.0,
+            occurrences: 1,
+        };
+
+        // Session 1: Rust, Tauri, WebRTC, SQLite
+        for kw in &[
+            make_kw("k1", "Rust"),
+            make_kw("k2", "Tauri"),
+            make_kw("k3", "WebRTC"),
+            make_kw("k4", "SQLite"),
+        ] {
+            storage.insert_keyword(&s1, kw).unwrap();
+        }
+
+        // Session 2: Rust, Tauri, Docker (overlaps 2 out of 4 with s1)
+        for kw in &[
+            make_kw("k5", "Rust"),
+            make_kw("k6", "Tauri"),
+            make_kw("k7", "Docker"),
+        ] {
+            storage.insert_keyword(&s2, kw).unwrap();
+        }
+
+        // Session 3: Python, Django (no overlap with s1)
+        for kw in &[make_kw("k8", "Python"), make_kw("k9", "Django")] {
+            storage.insert_keyword(&s3, kw).unwrap();
+        }
+
+        // Find related meetings for session 1
+        let links = storage.find_related_meetings(&s1).unwrap();
+
+        // Only session 2 should appear (session 3 has no overlap)
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].related_session_id, s2);
+        assert_eq!(links[0].related_title, "Sprint Planning");
+
+        // Similarity: 2 shared / max(4, 3) = 0.5
+        assert!((links[0].similarity_score - 0.5).abs() < f64::EPSILON);
+
+        // Shared keywords should be rust and tauri (lowercased)
+        let mut shared = links[0].shared_keywords.clone();
+        shared.sort();
+        assert_eq!(shared, vec!["rust", "tauri"]);
+
+        // Verify the links were persisted via get_meeting_links
+        let persisted = storage.get_meeting_links(&s1).unwrap();
+        assert_eq!(persisted.len(), 1);
+        assert_eq!(persisted[0].related_session_id, s2);
+    }
+
+    #[test]
+    fn test_keyword_dictionary_crud() {
+        let storage = SqliteStorage::in_memory().unwrap();
+
+        // Add 3 dictionary keywords
+        let id1 = storage
+            .add_dictionary_keyword("API", Some("エーピーアイ"), Some("Application Programming Interface"), "acronym")
+            .unwrap();
+        let id2 = storage
+            .add_dictionary_keyword("Kubernetes", Some("クーバネティス"), Some("Container orchestration"), "tech_term")
+            .unwrap();
+        let id3 = storage
+            .add_dictionary_keyword("WebRTC", None, Some("Real-time communication"), "tech_term")
+            .unwrap();
+
+        // Get all - verify 3 keywords, ordered by term
+        let all = storage.get_all_dictionary_keywords().unwrap();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].term, "API");
+        assert_eq!(all[1].term, "Kubernetes");
+        assert_eq!(all[2].term, "WebRTC");
+
+        // Update Kubernetes definition
+        storage
+            .update_dictionary_keyword(
+                id2,
+                "Kubernetes",
+                Some("クーバネティス"),
+                Some("Container orchestration platform"),
+                "tech_term",
+            )
+            .unwrap();
+
+        // Verify the update
+        let all = storage.get_all_dictionary_keywords().unwrap();
+        assert_eq!(all.len(), 3);
+        let k8s = all.iter().find(|k| k.term == "Kubernetes").unwrap();
+        assert_eq!(
+            k8s.definition.as_deref(),
+            Some("Container orchestration platform")
+        );
+
+        // Delete one keyword
+        storage.delete_dictionary_keyword(id1).unwrap();
+        let all = storage.get_all_dictionary_keywords().unwrap();
+        assert_eq!(all.len(), 2);
+        assert!(all.iter().all(|k| k.term != "API"));
+
+        // Search by term
+        let results = storage.search_dictionary("Web").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].term, "WebRTC");
+        assert_eq!(results[0].id, id3);
+    }
+
+    #[test]
+    fn test_sentiment_reanalysis_replaces_old() {
+        use crate::storage::sentiment_store::SentimentEntry;
+
+        let storage = SqliteStorage::in_memory().unwrap();
+        let session_id = storage.create_session("Reanalysis Test").unwrap();
+
+        // Insert segments
+        let seg1_id = storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Alice".to_string()),
+                text: "Initial analysis target.".to_string(),
+                start_time: 0.0,
+                end_time: 2.0,
+                confidence: Some(0.9),
+                is_partial: false,
+            })
+            .unwrap();
+        let seg2_id = storage
+            .insert_segment(&Segment {
+                id: 0,
+                session_id: session_id.clone(),
+                speaker: Some("Bob".to_string()),
+                text: "Another segment for analysis.".to_string(),
+                start_time: 2.0,
+                end_time: 4.0,
+                confidence: Some(0.9),
+                is_partial: false,
+            })
+            .unwrap();
+
+        // First analysis: insert old sentiments
+        let old_entries = vec![
+            SentimentEntry {
+                id: 0,
+                session_id: session_id.clone(),
+                segment_id: seg1_id,
+                score: 0.3,
+                emotion: "neutral".to_string(),
+                confidence: 0.70,
+                timestamp: 0.0,
+                created_at: String::new(),
+            },
+            SentimentEntry {
+                id: 0,
+                session_id: session_id.clone(),
+                segment_id: seg2_id,
+                score: 0.1,
+                emotion: "neutral".to_string(),
+                confidence: 0.65,
+                timestamp: 2.0,
+                created_at: String::new(),
+            },
+        ];
+        for entry in &old_entries {
+            storage.insert_sentiment(entry).unwrap();
+        }
+        assert_eq!(storage.get_sentiments(&session_id).unwrap().len(), 2);
+
+        // Re-analysis: delete old sentiments first
+        let deleted = storage.delete_sentiments(&session_id).unwrap();
+        assert_eq!(deleted, 2);
+
+        // Insert new sentiments with updated scores/emotions
+        let new_entries = vec![
+            SentimentEntry {
+                id: 0,
+                session_id: session_id.clone(),
+                segment_id: seg1_id,
+                score: 0.8,
+                emotion: "positive".to_string(),
+                confidence: 0.92,
+                timestamp: 0.0,
+                created_at: String::new(),
+            },
+            SentimentEntry {
+                id: 0,
+                session_id: session_id.clone(),
+                segment_id: seg2_id,
+                score: -0.4,
+                emotion: "concerned".to_string(),
+                confidence: 0.88,
+                timestamp: 2.0,
+                created_at: String::new(),
+            },
+        ];
+        for entry in &new_entries {
+            storage.insert_sentiment(entry).unwrap();
+        }
+
+        // Verify only new sentiments exist
+        let sentiments = storage.get_sentiments(&session_id).unwrap();
+        assert_eq!(sentiments.len(), 2);
+        assert_eq!(sentiments[0].emotion, "positive");
+        assert!((sentiments[0].score - 0.8).abs() < f64::EPSILON);
+        assert!((sentiments[0].confidence - 0.92).abs() < f64::EPSILON);
+        assert_eq!(sentiments[1].emotion, "concerned");
+        assert!((sentiments[1].score - (-0.4)).abs() < f64::EPSILON);
+        assert!((sentiments[1].confidence - 0.88).abs() < f64::EPSILON);
+    }
 }
