@@ -5,8 +5,9 @@ import { KeywordList } from "./KeywordList";
 import { ActionItemList } from "./ActionItemList";
 import { DecisionList } from "./DecisionList";
 import { InvestigationPanel } from "./InvestigationPanel";
+import { MinutesPanel } from "./MinutesPanel";
 
-type Section = "summary" | "keywords" | "actions" | "decisions" | "investigation";
+type Section = "summary" | "keywords" | "actions" | "decisions" | "investigation" | "minutes";
 
 const sections: { key: Section; label: string }[] = [
   { key: "summary", label: "サマリー" },
@@ -14,9 +15,10 @@ const sections: { key: Section; label: string }[] = [
   { key: "actions", label: "アクション" },
   { key: "decisions", label: "決定事項" },
   { key: "investigation", label: "調査" },
+  { key: "minutes", label: "議事録" },
 ];
 
-const sectionComponents: Record<Section, React.ComponentType> = {
+const sectionComponents: Record<string, React.ComponentType> = {
   summary: SummaryCard,
   keywords: KeywordList,
   actions: ActionItemList,
@@ -24,11 +26,21 @@ const sectionComponents: Record<Section, React.ComponentType> = {
   investigation: InvestigationPanel,
 };
 
-export function InsightsPanel() {
+interface InsightsPanelProps {
+  sessionId?: string | null;
+  minutes?: string | null;
+  isGeneratingMinutes?: boolean;
+  onGenerateMinutes?: () => void;
+}
+
+export function InsightsPanel({
+  sessionId = null,
+  minutes = null,
+  isGeneratingMinutes = false,
+  onGenerateMinutes,
+}: InsightsPanelProps) {
   const [active, setActive] = useState<Section>("summary");
   const isAnalyzing = useInsightsStore((s) => s.isAnalyzing);
-
-  const ActiveComponent = sectionComponents[active];
 
   return (
     <div className="flex flex-col h-full">
@@ -57,7 +69,19 @@ export function InsightsPanel() {
         ))}
       </div>
       <div className="flex-1 overflow-y-auto">
-        <ActiveComponent />
+        {active === "minutes" ? (
+          <MinutesPanel
+            sessionId={sessionId}
+            minutes={minutes}
+            isGenerating={isGeneratingMinutes}
+            onGenerate={onGenerateMinutes}
+          />
+        ) : (
+          (() => {
+            const ActiveComponent = sectionComponents[active];
+            return <ActiveComponent />;
+          })()
+        )}
       </div>
     </div>
   );

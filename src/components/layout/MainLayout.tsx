@@ -2,7 +2,19 @@ import { useState, useCallback } from "react";
 import { TranscriptPanel } from "@/components/transcript/TranscriptPanel";
 import { InsightsPanel } from "@/components/insights/InsightsPanel";
 
-export function MainLayout() {
+interface MainLayoutProps {
+  sessionId?: string | null;
+  minutes?: string | null;
+  isGeneratingMinutes?: boolean;
+  onGenerateMinutes?: () => void;
+}
+
+export function MainLayout({
+  sessionId = null,
+  minutes = null,
+  isGeneratingMinutes = false,
+  onGenerateMinutes,
+}: MainLayoutProps) {
   const [splitPercent, setSplitPercent] = useState(60);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -40,7 +52,12 @@ export function MainLayout() {
         onMouseDown={handleMouseDown}
       />
       <div className="flex-1 overflow-hidden">
-        <InsightsPanel />
+        <InsightsPanel
+          sessionId={sessionId}
+          minutes={minutes}
+          isGeneratingMinutes={isGeneratingMinutes}
+          onGenerateMinutes={onGenerateMinutes}
+        />
       </div>
     </div>
   );

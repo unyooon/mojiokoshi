@@ -9,7 +9,10 @@ function App() {
   const [backendStatus, setBackendStatus] = useState<string>("Connecting...");
   const [isConnected, setIsConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [minutes, setMinutes] = useState<string | null>(null);
+  const [isGeneratingMinutes, setIsGeneratingMinutes] = useState(false);
 
   useTauriEvents();
   useAiAnalysis(sessionId, isRecording);
@@ -28,7 +31,9 @@ function App() {
   const handleStart = useCallback(() => {
     const id = crypto.randomUUID();
     setSessionId(id);
+    setLastSessionId(id);
     setIsRecording(true);
+    setMinutes(null);
     // Will invoke Tauri command
   }, []);
 
@@ -48,6 +53,20 @@ function App() {
     // Will invoke Tauri command
   }, []);
 
+  const handleGenerateMinutes = useCallback(async () => {
+    if (!lastSessionId || isGeneratingMinutes) return;
+    setIsGeneratingMinutes(true);
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const result = await invoke<string>("generate_minutes", { sessionId: lastSessionId });
+      setMinutes(result);
+    } catch {
+      // Tauri API not available (browser dev mode)
+    } finally {
+      setIsGeneratingMinutes(false);
+    }
+  }, [lastSessionId, isGeneratingMinutes]);
+
   if (!isConnected) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -66,8 +85,15 @@ function App() {
         onPause={handlePause}
         onResume={handleResume}
         onStop={handleStop}
+        onGenerateMinutes={() => void handleGenerateMinutes()}
+        hasSession={!!lastSessionId}
       />
-      <MainLayout />
+      <MainLayout
+        sessionId={lastSessionId}
+        minutes={minutes}
+        isGeneratingMinutes={isGeneratingMinutes}
+        onGenerateMinutes={() => void handleGenerateMinutes()}
+      />
     </div>
   );
 }

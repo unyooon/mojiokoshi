@@ -7,15 +7,26 @@ interface MeetingControlsProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  onGenerateMinutes?: () => void;
+  hasSession?: boolean;
 }
 
-export function MeetingControls({ onStart, onPause, onResume, onStop }: MeetingControlsProps) {
+export function MeetingControls({
+  onStart,
+  onPause,
+  onResume,
+  onStop,
+  onGenerateMinutes,
+  hasSession = false,
+}: MeetingControlsProps) {
   const [meetingState, setMeetingState] = useState<MeetingState>("idle");
   const [startTime, setStartTime] = useState<number | null>(null);
+  const [hasStopped, setHasStopped] = useState(false);
 
   const handleStart = useCallback(() => {
     setMeetingState("recording");
     setStartTime(Date.now());
+    setHasStopped(false);
     onStart();
   }, [onStart]);
 
@@ -32,6 +43,7 @@ export function MeetingControls({ onStart, onPause, onResume, onStop }: MeetingC
   const handleStop = useCallback(() => {
     setMeetingState("idle");
     setStartTime(null);
+    setHasStopped(true);
     onStop();
   }, [onStop]);
 
@@ -85,6 +97,14 @@ export function MeetingControls({ onStart, onPause, onResume, onStop }: MeetingC
               Stop
             </button>
           </>
+        )}
+        {isIdle && hasStopped && hasSession && onGenerateMinutes && (
+          <button
+            onClick={onGenerateMinutes}
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            議事録
+          </button>
         )}
       </div>
     </div>
