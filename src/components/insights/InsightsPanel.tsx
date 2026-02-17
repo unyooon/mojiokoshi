@@ -7,6 +7,7 @@ import { DecisionList } from "./DecisionList";
 import { SpeakerPanel } from "./SpeakerPanel";
 import { InvestigationPanel } from "./InvestigationPanel";
 import { MinutesPanel } from "./MinutesPanel";
+import { TopicTimeline } from "./TopicTimeline";
 
 type Section =
   | "summary"
@@ -15,6 +16,7 @@ type Section =
   | "decisions"
   | "speakers"
   | "investigation"
+  | "timeline"
   | "minutes";
 
 const sections: { key: Section; label: string }[] = [
@@ -24,6 +26,7 @@ const sections: { key: Section; label: string }[] = [
   { key: "decisions", label: "決定事項" },
   { key: "speakers", label: "話者" },
   { key: "investigation", label: "調査" },
+  { key: "timeline", label: "タイムライン" },
   { key: "minutes", label: "議事録" },
 ];
 
@@ -34,6 +37,7 @@ const sectionComponents: Record<string, React.ComponentType> = {
   decisions: DecisionList,
   speakers: SpeakerPanel,
   investigation: InvestigationPanel,
+  timeline: TopicTimeline,
 };
 
 interface InsightsPanelProps {

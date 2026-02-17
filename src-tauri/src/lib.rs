@@ -5,6 +5,9 @@ pub mod commands;
 pub mod diarization;
 pub mod diarization_commands;
 pub mod error;
+pub mod export;
+pub mod export_commands;
+pub mod search_commands;
 pub mod storage;
 pub mod whisper;
 
@@ -30,6 +33,8 @@ use diarization_commands::{
     get_speakers, run_diarization, start_diarization, stop_diarization, DiarizationState,
 };
 use error::AppError;
+use export_commands::{export_markdown, save_export_file};
+use search_commands::{get_all_settings, get_setting, search_transcripts, set_setting};
 
 /// Run the Tauri application.
 ///
@@ -59,6 +64,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             get_speakers,
             toggle_mini_view,
             focus_main_window,
+            search_transcripts,
+            get_setting,
+            set_setting,
+            get_all_settings,
+            export_markdown,
+            save_export_file,
         ]);
 
     #[cfg(debug_assertions)]

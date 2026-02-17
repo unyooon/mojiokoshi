@@ -53,3 +53,10 @@ export interface Source {
   title: string;
   url: string;
 }
+
+export interface Topic {
+  id: string;
+  title: string;
+  timestamp: number;
+  keywords: string[];
+}

@@ -59,10 +59,12 @@ impl SqliteStorage {
                 ON keywords(session_id, term);",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
-        // Release the connection lock before calling init_speaker_tables
-        // which also acquires it.
+        // Release the connection lock before calling sub-init methods
+        // which also acquire it.
         drop(conn);
         self.init_speaker_tables()?;
+        self.init_search_tables()?;
+        self.init_settings_tables()?;
         Ok(())
     }
 
@@ -112,6 +114,34 @@ impl SqliteStorage {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(segments)
+    }
+
+    /// Retrieve a single session by ID.
+    pub fn get_session(&self, session_id: &str) -> Result<super::Session, AppError> {
+        let conn = self.lock_conn()?;
+        conn.query_row(
+            "SELECT id, title, started_at, ended_at, target_app, whisper_model, status \
+             FROM sessions WHERE id = ?1",
+            rusqlite::params![session_id],
+            |row| {
+                let status_str: String = row.get(6)?;
+                let status = match status_str.as_str() {
+                    "completed" => super::SessionStatus::Completed,
+                    "archived" => super::SessionStatus::Archived,
+                    _ => super::SessionStatus::Active,
+                };
+                Ok(super::Session {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    started_at: row.get(2)?,
+                    ended_at: row.get(3)?,
+                    target_app: row.get(4)?,
+                    whisper_model: row.get(5)?,
+                    status,
+                })
+            },
+        )
+        .map_err(|e| AppError::Storage(format!("session not found: {e}")))
     }
 }
 

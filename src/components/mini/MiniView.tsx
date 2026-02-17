@@ -62,7 +62,7 @@ export function MiniView() {
   return (
     <div
       onClick={() => void handleFocusMain()}
-      className="h-screen w-screen cursor-pointer select-none bg-zinc-900/95 p-3 text-white"
+      className="h-screen w-screen cursor-pointer select-none bg-background/95 p-3 text-foreground"
       data-tauri-drag-region
     >
       <div className="mb-2 flex items-center justify-between">

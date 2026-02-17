@@ -24,6 +24,7 @@ thiserror = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
 
 [dev-dependencies]
 mockall = "0.13"
