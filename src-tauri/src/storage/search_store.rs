@@ -64,13 +64,14 @@ impl SqliteStorage {
         } else {
             format!("{base} ORDER BY s.start_time")
         };
-        let mut params: Vec<Box<dyn rusqlite::types::ToSql>> =
-            vec![Box::new(query.to_string())];
+        let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(query.to_string())];
         if let Some(sid) = session_id {
             params.push(Box::new(sid.to_string()));
         }
         let refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| &**p).collect();
-        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(&sql)
+            .map_err(|e| AppError::Storage(e.to_string()))?;
         let results = stmt
             .query_map(refs.as_slice(), |row| {
                 Ok(SearchResult {
@@ -110,7 +111,9 @@ mod tests {
     }
 
     fn insert(storage: &SqliteStorage, session_id: &str, text: &str, start: f64) {
-        storage.insert_segment(&seg(session_id, text, start)).unwrap();
+        storage
+            .insert_segment(&seg(session_id, text, start))
+            .unwrap();
     }
 
     #[test]
