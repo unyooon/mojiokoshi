@@ -4,31 +4,45 @@ import { SummaryCard } from "./SummaryCard";
 import { KeywordList } from "./KeywordList";
 import { ActionItemList } from "./ActionItemList";
 import { DecisionList } from "./DecisionList";
+import { SpeakerPanel } from "./SpeakerPanel";
 import { InvestigationPanel } from "./InvestigationPanel";
+import { MinutesPanel } from "./MinutesPanel";
 
-type Section = "summary" | "keywords" | "actions" | "decisions" | "investigation";
+type Section =
+  | "summary"
+  | "keywords"
+  | "actions"
+  | "decisions"
+  | "speakers"
+  | "investigation"
+  | "minutes";
 
 const sections: { key: Section; label: string }[] = [
   { key: "summary", label: "サマリー" },
   { key: "keywords", label: "キーワード" },
   { key: "actions", label: "アクション" },
   { key: "decisions", label: "決定事項" },
+  { key: "speakers", label: "話者" },
   { key: "investigation", label: "調査" },
+  { key: "minutes", label: "議事録" },
 ];
 
-const sectionComponents: Record<Section, React.ComponentType> = {
+const sectionComponents: Record<string, React.ComponentType> = {
   summary: SummaryCard,
   keywords: KeywordList,
   actions: ActionItemList,
   decisions: DecisionList,
+  speakers: SpeakerPanel,
   investigation: InvestigationPanel,
 };
 
-export function InsightsPanel() {
+interface InsightsPanelProps {
+  sessionId?: string | null;
+}
+
+export function InsightsPanel({ sessionId = null }: InsightsPanelProps) {
   const [active, setActive] = useState<Section>("summary");
   const isAnalyzing = useInsightsStore((s) => s.isAnalyzing);
-
-  const ActiveComponent = sectionComponents[active];
 
   return (
     <div className="flex flex-col h-full">
@@ -57,7 +71,14 @@ export function InsightsPanel() {
         ))}
       </div>
       <div className="flex-1 overflow-y-auto">
-        <ActiveComponent />
+        {active === "minutes" ? (
+          <MinutesPanel sessionId={sessionId} />
+        ) : (
+          (() => {
+            const ActiveComponent = sectionComponents[active];
+            return <ActiveComponent />;
+          })()
+        )}
       </div>
     </div>
   );

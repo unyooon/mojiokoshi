@@ -2,6 +2,8 @@ pub mod ai_commands;
 pub mod audio;
 pub mod claude;
 pub mod commands;
+pub mod diarization;
+pub mod diarization_commands;
 pub mod error;
 pub mod storage;
 pub mod whisper;
@@ -20,8 +22,12 @@ use ai_commands::{
     generate_minutes, investigate, run_ai_batch, start_ai_analysis, stop_ai_analysis, AiState,
 };
 use commands::{
-    check_screen_capture_permission, create_session, end_session, get_capture_state, health_check,
-    pause_audio_capture, resume_audio_capture, start_audio_capture, stop_audio_capture, AppState,
+    check_screen_capture_permission, create_session, end_session, focus_main_window,
+    get_capture_state, health_check, pause_audio_capture, resume_audio_capture,
+    start_audio_capture, stop_audio_capture, toggle_mini_view, AppState,
+};
+use diarization_commands::{
+    get_speakers, run_diarization, start_diarization, stop_diarization, DiarizationState,
 };
 use error::AppError;
 
@@ -47,6 +53,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             run_ai_batch,
             investigate,
             generate_minutes,
+            start_diarization,
+            stop_diarization,
+            run_diarization,
+            get_speakers,
+            toggle_mini_view,
+            focus_main_window,
         ]);
 
     #[cfg(debug_assertions)]
@@ -82,9 +94,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
             app.manage(AiState {
                 bridge,
-                storage: db,
+                storage: Arc::clone(&db),
                 batch_processor: Mutex::new(None),
             });
+
+            app.manage(DiarizationState {
+                bridge: Mutex::new(diarization::PyannoteBridge::new()),
+            });
+
+            app.manage(db);
 
             Ok(())
         })
