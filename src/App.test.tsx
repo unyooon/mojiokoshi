@@ -124,4 +124,60 @@ describe("App", () => {
       expect(screen.getByText("Settings")).toBeVisible();
     });
   });
+
+  it("shows error when screen capture permission is denied", async () => {
+    mockHealthCheck.mockResolvedValue({ status: "ok", data: "ok" });
+    mockCheckPermission.mockResolvedValue({ status: "ok", data: false });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Start Recording")).toBeVisible();
+    });
+
+    fireEvent.click(screen.getByText("Start Recording"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Screen capture permission denied")).toBeVisible();
+    });
+    expect(screen.getByText("Start Recording")).toBeVisible();
+  });
+
+  it("transitions to recording state on successful start", async () => {
+    mockHealthCheck.mockResolvedValue({ status: "ok", data: "ok" });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Start Recording")).toBeVisible();
+    });
+
+    fireEvent.click(screen.getByText("Start Recording"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Pause")).toBeVisible();
+      expect(screen.getByText("Stop")).toBeVisible();
+    });
+  });
+
+  it("does not start recording when startAudioCapture fails", async () => {
+    mockHealthCheck.mockResolvedValue({ status: "ok", data: "ok" });
+    mockStartCapture.mockResolvedValue({
+      status: "error",
+      error: { AudioCapture: "device unavailable" },
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Start Recording")).toBeVisible();
+    });
+
+    fireEvent.click(screen.getByText("Start Recording"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to start audio capture")).toBeVisible();
+    });
+    expect(screen.getByText("Start Recording")).toBeVisible();
+  });
 });

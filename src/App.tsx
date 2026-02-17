@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { commands } from "./bindings";
+import type { MeetingState } from "./types";
 import { MeetingControls } from "./components/meeting/MeetingControls";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
@@ -16,8 +17,11 @@ function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
 
   const theme = useSettingsStore((s) => s.settings.theme);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
@@ -61,25 +65,46 @@ function App() {
     };
   }, []);
 
+  const meetingState: MeetingState = useMemo(() => {
+    if (isRecording) return "recording";
+    if (isPaused) return "paused";
+    return "idle";
+  }, [isRecording, isPaused]);
+
   const handleStart = useCallback(async () => {
+    setCaptureError(null);
     const perm = await commands.checkScreenCapturePermission();
-    if (perm.status === "error" || !perm.data) {
+    if (perm.status === "error") {
+      console.error("Permission check failed:", perm.error);
+      setCaptureError("Failed to check screen capture permission");
+      return;
+    }
+    if (!perm.data) {
+      console.error("Screen capture permission denied");
+      setCaptureError("Screen capture permission denied");
       return;
     }
     const result = await commands.startAudioCapture();
     if (result.status === "error") {
+      console.error("Failed to start audio capture:", result.error);
+      setCaptureError("Failed to start audio capture");
       return;
     }
     const id = crypto.randomUUID();
     setSessionId(id);
     setLastSessionId(id);
     setIsRecording(true);
+    setIsPaused(false);
+    setRecordingStartTime(Date.now());
   }, []);
 
   const handlePause = useCallback(async () => {
     const result = await commands.pauseAudioCapture();
     if (result.status === "ok") {
       setIsRecording(false);
+      setIsPaused(true);
+    } else {
+      console.error("Failed to pause audio capture:", result.error);
     }
   }, []);
 
@@ -87,13 +112,23 @@ function App() {
     const result = await commands.resumeAudioCapture();
     if (result.status === "ok") {
       setIsRecording(true);
+      setIsPaused(false);
+    } else {
+      console.error("Failed to resume audio capture:", result.error);
     }
   }, []);
 
+  // Stop always resets UI state regardless of command result,
+  // because the user intent to end the session should be honored.
   const handleStop = useCallback(async () => {
-    await commands.stopAudioCapture();
+    const result = await commands.stopAudioCapture();
+    if (result.status === "error") {
+      console.error("Failed to stop audio capture:", result.error);
+    }
     setIsRecording(false);
+    setIsPaused(false);
     setSessionId(null);
+    setRecordingStartTime(null);
   }, []);
 
   const handleCloseSettings = useCallback(() => {
@@ -122,12 +157,15 @@ function App() {
   return (
     <div className="flex h-screen flex-col">
       <MeetingControls
+        meetingState={meetingState}
+        startTime={recordingStartTime}
         onStart={handleStart}
         onPause={handlePause}
         onResume={handleResume}
         onStop={handleStop}
         onExport={handleOpenExport}
         hasSession={lastSessionId !== null}
+        error={captureError}
       />
       <MainLayout sessionId={lastSessionId} />
       <SettingsDialog open={settingsOpen} onClose={handleCloseSettings} />

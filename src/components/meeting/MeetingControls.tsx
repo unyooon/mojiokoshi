@@ -1,52 +1,49 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import type { MeetingState } from "@/types";
 import { Timer } from "./Timer";
 
 interface MeetingControlsProps {
+  meetingState: MeetingState;
+  startTime: number | null;
   onStart: () => void | Promise<void>;
   onPause: () => void | Promise<void>;
   onResume: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onExport?: () => void;
   hasSession?: boolean;
+  error?: string | null;
 }
 
 export function MeetingControls({
+  meetingState,
+  startTime,
   onStart,
   onPause,
   onResume,
   onStop,
   onExport,
   hasSession = false,
+  error = null,
 }: MeetingControlsProps) {
-  const [meetingState, setMeetingState] = useState<MeetingState>("idle");
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const isRecording = meetingState === "recording";
+  const isPaused = meetingState === "paused";
+  const isIdle = meetingState === "idle";
 
   const handleStart = useCallback(() => {
-    setMeetingState("recording");
-    setStartTime(Date.now());
     void onStart();
   }, [onStart]);
 
   const handlePause = useCallback(() => {
-    setMeetingState("paused");
     void onPause();
   }, [onPause]);
 
   const handleResume = useCallback(() => {
-    setMeetingState("recording");
     void onResume();
   }, [onResume]);
 
   const handleStop = useCallback(() => {
-    setMeetingState("idle");
-    setStartTime(null);
     void onStop();
   }, [onStop]);
-
-  const isRecording = meetingState === "recording";
-  const isPaused = meetingState === "paused";
-  const isIdle = meetingState === "idle";
 
   return (
     <div className="flex items-center gap-3 px-4 py-2 border-b border-border">
@@ -61,6 +58,8 @@ export function MeetingControls({
       </div>
 
       <Timer startTime={startTime} isRunning={isRecording} />
+
+      {error && <span className="text-sm text-red-500">{error}</span>}
 
       <div className="flex items-center gap-1 ml-auto">
         {isIdle && hasSession && onExport && (
