@@ -1,4 +1,5 @@
 pub mod output_handler;
+pub mod processing;
 pub mod sample_convert;
 pub mod screen_capture;
 pub mod types;

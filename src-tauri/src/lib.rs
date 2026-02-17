@@ -122,6 +122,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             app.manage(AppState {
                 capture: Mutex::new(audio::screen_capture::ScreenCaptureKitCapture::new()),
                 storage: Arc::clone(&db),
+                pipeline_shutdown: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+                pipeline_handle: Mutex::new(None),
             });
 
             app.manage(AiState {

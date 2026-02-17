@@ -1,7 +1,10 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 
 use tauri::{Manager, State};
 
+use crate::audio::processing::spawn_pipeline;
 use crate::audio::screen_capture::ScreenCaptureKitCapture;
 use crate::audio::{AudioBuffer, AudioCapture, AudioConfig, CaptureState};
 use crate::error::AppError;
@@ -11,6 +14,8 @@ use crate::storage::SessionStorage;
 pub struct AppState {
     pub capture: Mutex<ScreenCaptureKitCapture>,
     pub storage: Arc<SqliteStorage>,
+    pub pipeline_shutdown: Arc<AtomicBool>,
+    pub pipeline_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 fn lock_err<T: std::fmt::Display>(e: T) -> AppError {
@@ -25,18 +30,40 @@ pub fn health_check() -> Result<String, AppError> {
 
 #[tauri::command]
 #[specta::specta]
-pub fn start_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
+pub fn start_audio_capture(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), AppError> {
     let mut capture = state.capture.lock().map_err(lock_err)?;
     let config = AudioConfig::default();
-    let (sender, _receiver) = std::sync::mpsc::channel::<AudioBuffer>();
-    capture.start(&config, sender)
+    let (sender, receiver) = std::sync::mpsc::channel::<AudioBuffer>();
+
+    capture.start(&config, sender)?;
+
+    state.pipeline_shutdown.store(false, Ordering::Release);
+    let handle = spawn_pipeline(receiver, app_handle, Arc::clone(&state.pipeline_shutdown));
+
+    let mut pipeline = state.pipeline_handle.lock().map_err(lock_err)?;
+    *pipeline = Some(handle);
+
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn stop_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
+    state.pipeline_shutdown.store(true, Ordering::Release);
+
     let mut capture = state.capture.lock().map_err(lock_err)?;
-    capture.stop()
+    capture.stop()?;
+
+    let mut pipeline = state.pipeline_handle.lock().map_err(lock_err)?;
+    if let Some(handle) = pipeline.take() {
+        let _ = handle.join();
+    }
+
+    state.pipeline_shutdown.store(false, Ordering::Release);
+    Ok(())
 }
 
 #[tauri::command]
