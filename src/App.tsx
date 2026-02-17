@@ -61,28 +61,39 @@ function App() {
     };
   }, []);
 
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
+    const perm = await commands.checkScreenCapturePermission();
+    if (perm.status === "error" || !perm.data) {
+      return;
+    }
+    const result = await commands.startAudioCapture();
+    if (result.status === "error") {
+      return;
+    }
     const id = crypto.randomUUID();
     setSessionId(id);
     setLastSessionId(id);
     setIsRecording(true);
-    // Will invoke Tauri command
   }, []);
 
-  const handlePause = useCallback(() => {
-    setIsRecording(false);
-    // Will invoke Tauri command
+  const handlePause = useCallback(async () => {
+    const result = await commands.pauseAudioCapture();
+    if (result.status === "ok") {
+      setIsRecording(false);
+    }
   }, []);
 
-  const handleResume = useCallback(() => {
-    setIsRecording(true);
-    // Will invoke Tauri command
+  const handleResume = useCallback(async () => {
+    const result = await commands.resumeAudioCapture();
+    if (result.status === "ok") {
+      setIsRecording(true);
+    }
   }, []);
 
-  const handleStop = useCallback(() => {
+  const handleStop = useCallback(async () => {
+    await commands.stopAudioCapture();
     setIsRecording(false);
     setSessionId(null);
-    // Will invoke Tauri command
   }, []);
 
   const handleCloseSettings = useCallback(() => {

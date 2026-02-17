@@ -3,10 +3,10 @@ import type { MeetingState } from "@/types";
 import { Timer } from "./Timer";
 
 interface MeetingControlsProps {
-  onStart: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onStop: () => void;
+  onStart: () => void | Promise<void>;
+  onPause: () => void | Promise<void>;
+  onResume: () => void | Promise<void>;
+  onStop: () => void | Promise<void>;
   onExport?: () => void;
   hasSession?: boolean;
 }
@@ -25,23 +25,23 @@ export function MeetingControls({
   const handleStart = useCallback(() => {
     setMeetingState("recording");
     setStartTime(Date.now());
-    onStart();
+    void onStart();
   }, [onStart]);
 
   const handlePause = useCallback(() => {
     setMeetingState("paused");
-    onPause();
+    void onPause();
   }, [onPause]);
 
   const handleResume = useCallback(() => {
     setMeetingState("recording");
-    onResume();
+    void onResume();
   }, [onResume]);
 
   const handleStop = useCallback(() => {
     setMeetingState("idle");
     setStartTime(null);
-    onStop();
+    void onStop();
   }, [onStop]);
 
   const isRecording = meetingState === "recording";

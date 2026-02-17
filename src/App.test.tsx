@@ -6,11 +6,22 @@ import { commands } from "./bindings";
 vi.mock("./bindings", () => ({
   commands: {
     healthCheck: vi.fn(),
+    checkScreenCapturePermission: vi.fn(),
+    startAudioCapture: vi.fn(),
+    stopAudioCapture: vi.fn(),
+    pauseAudioCapture: vi.fn(),
+    resumeAudioCapture: vi.fn(),
   },
 }));
 
-// eslint-disable-next-line @typescript-eslint/unbound-method
+/* eslint-disable @typescript-eslint/unbound-method */
 const mockHealthCheck = vi.mocked(commands.healthCheck);
+const mockCheckPermission = vi.mocked(commands.checkScreenCapturePermission);
+const mockStartCapture = vi.mocked(commands.startAudioCapture);
+const mockStopCapture = vi.mocked(commands.stopAudioCapture);
+const mockPauseCapture = vi.mocked(commands.pauseAudioCapture);
+const mockResumeCapture = vi.mocked(commands.resumeAudioCapture);
+/* eslint-enable @typescript-eslint/unbound-method */
 
 beforeAll(() => {
   // jsdom does not implement matchMedia; stub it for useTheme hook
@@ -49,6 +60,11 @@ describe("App", () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       new Promise(() => {}),
     );
+    mockCheckPermission.mockResolvedValue({ status: "ok", data: true });
+    mockStartCapture.mockResolvedValue({ status: "ok", data: null });
+    mockStopCapture.mockResolvedValue({ status: "ok", data: null });
+    mockPauseCapture.mockResolvedValue({ status: "ok", data: null });
+    mockResumeCapture.mockResolvedValue({ status: "ok", data: null });
   });
 
   it("renders loading state initially", () => {
