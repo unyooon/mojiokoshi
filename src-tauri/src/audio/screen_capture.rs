@@ -41,7 +41,11 @@ impl ScreenCaptureKitCapture {
 }
 
 impl AudioCapture for ScreenCaptureKitCapture {
-    fn start(&mut self, config: &AudioConfig) -> Result<(), AppError> {
+    fn start(
+        &mut self,
+        config: &AudioConfig,
+        _sender: std::sync::mpsc::Sender<crate::audio::AudioBuffer>,
+    ) -> Result<(), AppError> {
         let current = self.state.load(Ordering::Acquire);
         if current == STATE_CAPTURING {
             return Err(AppError::AudioCapture("Already capturing".to_string()));
@@ -94,12 +98,17 @@ mod tests {
         assert_eq!(capture.state(), CaptureState::Idle);
     }
 
+    fn dummy_sender() -> std::sync::mpsc::Sender<crate::audio::AudioBuffer> {
+        let (sender, _receiver) = std::sync::mpsc::channel();
+        sender
+    }
+
     #[test]
     fn test_start_stop_lifecycle() {
         let mut capture = ScreenCaptureKitCapture::new();
         let config = AudioConfig::default();
 
-        capture.start(&config).unwrap();
+        capture.start(&config, dummy_sender()).unwrap();
         assert_eq!(capture.state(), CaptureState::Capturing);
 
         capture.stop().unwrap();
@@ -111,7 +120,7 @@ mod tests {
         let mut capture = ScreenCaptureKitCapture::new();
         let config = AudioConfig::default();
 
-        capture.start(&config).unwrap();
+        capture.start(&config, dummy_sender()).unwrap();
         capture.pause().unwrap();
         assert_eq!(capture.state(), CaptureState::Paused);
 
@@ -124,8 +133,8 @@ mod tests {
         let mut capture = ScreenCaptureKitCapture::new();
         let config = AudioConfig::default();
 
-        capture.start(&config).unwrap();
-        assert!(capture.start(&config).is_err());
+        capture.start(&config, dummy_sender()).unwrap();
+        assert!(capture.start(&config, dummy_sender()).is_err());
     }
 
     #[test]

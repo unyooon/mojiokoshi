@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::audio::screen_capture::ScreenCaptureKitCapture;
-    use crate::audio::{AudioCapture, AudioConfig, CaptureState};
+    use crate::audio::{AudioBuffer, AudioCapture, AudioConfig, CaptureState};
     use crate::storage::{sqlite::SqliteStorage, Segment, SessionStorage};
     use crate::whisper::{
         pipeline::RingBuffer,
@@ -13,12 +13,17 @@ mod tests {
         SpeechRecognizer, VoiceActivityDetector,
     };
 
+    fn dummy_sender() -> std::sync::mpsc::Sender<AudioBuffer> {
+        let (sender, _receiver) = std::sync::mpsc::channel();
+        sender
+    }
+
     #[test]
     fn test_capture_to_vad_pipeline() {
         // 1. Start capture
         let mut capture = ScreenCaptureKitCapture::new();
         let config = AudioConfig::default();
-        capture.start(&config).unwrap();
+        capture.start(&config, dummy_sender()).unwrap();
         assert_eq!(capture.state(), CaptureState::Capturing);
 
         // 2. Simulate audio data in ring buffer
@@ -107,7 +112,7 @@ mod tests {
 
         // Start session and capture
         let session_id = storage.create_session("Integration Test").unwrap();
-        capture.start(&config).unwrap();
+        capture.start(&config, dummy_sender()).unwrap();
 
         // Simulate multiple audio chunks
         for chunk in 0..3 {
@@ -338,7 +343,7 @@ mod tests {
 
         // Start session and capture
         let session_id = storage.create_session("Full AI Pipeline Test").unwrap();
-        capture.start(&config).unwrap();
+        capture.start(&config, dummy_sender()).unwrap();
 
         // Simulate multiple audio chunks through VAD -> Whisper -> Storage
         for chunk in 0..3 {
@@ -738,7 +743,7 @@ mod tests {
         let config = AudioConfig::default();
         let mut ring_buffer = RingBuffer::new(5.0, config.sample_rate);
 
-        capture.start(&config).unwrap();
+        capture.start(&config, dummy_sender()).unwrap();
 
         // Add data before pause
         ring_buffer.push_samples(&[0.5; 1000]);

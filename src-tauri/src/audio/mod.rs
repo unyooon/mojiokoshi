@@ -1,3 +1,4 @@
+pub mod sample_convert;
 pub mod screen_capture;
 pub mod types;
 
@@ -11,7 +12,11 @@ use crate::error::AppError;
 /// (e.g., ScreenCaptureKit on macOS).
 pub trait AudioCapture: Send + Sync {
     /// Start capturing audio with the given configuration.
-    fn start(&mut self, config: &AudioConfig) -> Result<(), AppError>;
+    fn start(
+        &mut self,
+        config: &AudioConfig,
+        sender: std::sync::mpsc::Sender<AudioBuffer>,
+    ) -> Result<(), AppError>;
 
     /// Stop capturing audio.
     fn stop(&mut self) -> Result<(), AppError>;
