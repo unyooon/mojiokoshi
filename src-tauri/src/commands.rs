@@ -132,6 +132,21 @@ pub async fn toggle_mini_view(app: tauri::AppHandle) -> Result<(), AppError> {
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct SidecarStatus {
+    pub ai_available: bool,
+    pub diarization_available: bool,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn check_sidecar_status() -> Result<SidecarStatus, AppError> {
+    Ok(SidecarStatus {
+        ai_available: crate::claude::sidecar_available(),
+        diarization_available: crate::diarization::helpers::sidecar_available(),
+    })
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn focus_main_window(app: tauri::AppHandle) -> Result<(), AppError> {
