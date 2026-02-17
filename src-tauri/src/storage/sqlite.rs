@@ -65,6 +65,9 @@ impl SqliteStorage {
         self.init_speaker_tables()?;
         self.init_search_tables()?;
         self.init_settings_tables()?;
+        self.init_sentiment_tables()?;
+        self.init_translation_tables()?;
+        self.init_meeting_link_tables()?;
         Ok(())
     }
 

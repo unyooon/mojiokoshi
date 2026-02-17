@@ -7,8 +7,11 @@ pub mod diarization_commands;
 pub mod error;
 pub mod export;
 pub mod export_commands;
+pub mod meeting_link_commands;
 pub mod search_commands;
+pub mod sentiment_commands;
 pub mod storage;
+pub mod translation_commands;
 pub mod whisper;
 
 #[cfg(test)]
@@ -34,7 +37,10 @@ use diarization_commands::{
 };
 use error::AppError;
 use export_commands::{export_markdown, save_export_file};
+use meeting_link_commands::{find_related_meetings, get_meeting_links};
 use search_commands::{get_all_settings, get_setting, search_transcripts, set_setting};
+use sentiment_commands::{analyze_sentiment, get_sentiments};
+use translation_commands::{get_translations, translate_segments};
 
 /// Run the Tauri application.
 ///
@@ -70,6 +76,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             get_all_settings,
             export_markdown,
             save_export_file,
+            translate_segments,
+            get_translations,
+            find_related_meetings,
+            get_meeting_links,
+            analyze_sentiment,
+            get_sentiments,
         ]);
 
     #[cfg(debug_assertions)]
