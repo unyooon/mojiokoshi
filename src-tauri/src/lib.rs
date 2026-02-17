@@ -29,7 +29,8 @@ use ai_commands::{
     generate_minutes, investigate, run_ai_batch, start_ai_analysis, stop_ai_analysis, AiState,
 };
 use commands::{
-    check_screen_capture_permission, create_session, end_session, focus_main_window,
+    check_screen_capture_permission, check_sidecar_status, create_session, end_session,
+    focus_main_window,
     get_capture_state, health_check, pause_audio_capture, resume_audio_capture,
     start_audio_capture, stop_audio_capture, toggle_mini_view, AppState,
 };
@@ -91,6 +92,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             update_dictionary_keyword,
             delete_dictionary_keyword,
             get_all_dictionary_keywords,
+            check_sidecar_status,
         ]);
 
     #[cfg(debug_assertions)]

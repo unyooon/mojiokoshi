@@ -1,5 +1,5 @@
 pub mod bridge;
-mod helpers;
+pub mod helpers;
 pub mod types;
 
 pub use bridge::PyannoteBridge;

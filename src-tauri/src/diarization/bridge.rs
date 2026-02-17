@@ -28,8 +28,18 @@ impl Default for PyannoteBridge {
 }
 
 impl PyannoteBridge {
+    /// Create a new bridge.
+    ///
+    /// Stub mode is determined by:
+    /// - `MOJIOKOSHI_DIARIZE_STUB=1` forces stub mode
+    /// - `MOJIOKOSHI_DIARIZE_STUB=0` forces real mode
+    /// - Unset: auto-detect based on sidecar file availability
     pub fn new() -> Self {
-        let is_stub = std::env::var("MOJIOKOSHI_DIARIZE_STUB").unwrap_or_default() == "1";
+        let is_stub = match std::env::var("MOJIOKOSHI_DIARIZE_STUB").as_deref() {
+            Ok("1") => true,
+            Ok("0") => false,
+            _ => !super::helpers::sidecar_available(),
+        };
         Self {
             process: Mutex::new(None),
             is_stub,

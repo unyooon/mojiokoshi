@@ -59,6 +59,17 @@ pub(crate) fn ie(msg: String) -> AppError {
     AppError::Internal(msg)
 }
 
+/// Check if the diarization sidecar (Python + pyannote) files are available.
+pub fn sidecar_available() -> bool {
+    if let Ok(dir) = find_sidecar_dir() {
+        let script = dir.join("diarize.py");
+        let venv = dir.join("venv");
+        script.exists() && venv.exists()
+    } else {
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

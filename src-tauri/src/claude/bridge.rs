@@ -27,9 +27,18 @@ impl Default for ClaudeCodeBridge {
 }
 
 impl ClaudeCodeBridge {
-    /// Create a new bridge. Set `MOJIOKOSHI_AI_STUB=1` for mock data.
+    /// Create a new bridge.
+    ///
+    /// Stub mode is determined by:
+    /// - `MOJIOKOSHI_AI_STUB=1` forces stub mode
+    /// - `MOJIOKOSHI_AI_STUB=0` forces real mode
+    /// - Unset: auto-detect based on sidecar file availability
     pub fn new() -> Self {
-        let is_stub = std::env::var("MOJIOKOSHI_AI_STUB").unwrap_or_default() == "1";
+        let is_stub = match std::env::var("MOJIOKOSHI_AI_STUB").as_deref() {
+            Ok("1") => true,
+            Ok("0") => false,
+            _ => !super::sidecar_available(),
+        };
         Self {
             process: Mutex::new(None),
             is_stub,
@@ -67,6 +76,18 @@ impl ClaudeCodeBridge {
             .stdout
             .take()
             .ok_or_else(|| AppError::AiAnalysis("Failed to capture bridge stdout".to_string()))?;
+
+        if let Some(stderr) = child.stderr.take() {
+            std::thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    match line {
+                        Ok(l) => eprintln!("[ai-bridge stderr] {l}"),
+                        Err(_) => break,
+                    }
+                }
+            });
+        }
 
         *guard = Some(BridgeProcess {
             child,
