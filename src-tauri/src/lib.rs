@@ -2,6 +2,7 @@ pub mod ai_commands;
 pub mod audio;
 pub mod claude;
 pub mod commands;
+pub mod diarization;
 pub mod error;
 pub mod storage;
 pub mod whisper;
