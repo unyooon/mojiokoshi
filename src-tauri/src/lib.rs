@@ -30,8 +30,7 @@ use ai_commands::{
 };
 use commands::{
     check_screen_capture_permission, check_sidecar_status, create_session, end_session,
-    focus_main_window,
-    get_capture_state, health_check, pause_audio_capture, resume_audio_capture,
+    focus_main_window, get_capture_state, health_check, pause_audio_capture, resume_audio_capture,
     start_audio_capture, stop_audio_capture, toggle_mini_view, AppState,
 };
 use diarization_commands::{
