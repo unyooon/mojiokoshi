@@ -1297,10 +1297,20 @@ mod tests {
 
         // Add 3 dictionary keywords
         let id1 = storage
-            .add_dictionary_keyword("API", Some("エーピーアイ"), Some("Application Programming Interface"), "acronym")
+            .add_dictionary_keyword(
+                "API",
+                Some("エーピーアイ"),
+                Some("Application Programming Interface"),
+                "acronym",
+            )
             .unwrap();
         let id2 = storage
-            .add_dictionary_keyword("Kubernetes", Some("クーバネティス"), Some("Container orchestration"), "tech_term")
+            .add_dictionary_keyword(
+                "Kubernetes",
+                Some("クーバネティス"),
+                Some("Container orchestration"),
+                "tech_term",
+            )
             .unwrap();
         let id3 = storage
             .add_dictionary_keyword("WebRTC", None, Some("Real-time communication"), "tech_term")
