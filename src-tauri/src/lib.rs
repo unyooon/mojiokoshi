@@ -22,8 +22,9 @@ use ai_commands::{
     generate_minutes, investigate, run_ai_batch, start_ai_analysis, stop_ai_analysis, AiState,
 };
 use commands::{
-    check_screen_capture_permission, create_session, end_session, get_capture_state, health_check,
-    pause_audio_capture, resume_audio_capture, start_audio_capture, stop_audio_capture, AppState,
+    check_screen_capture_permission, create_session, end_session, focus_main_window,
+    get_capture_state, health_check, pause_audio_capture, resume_audio_capture,
+    start_audio_capture, stop_audio_capture, toggle_mini_view, AppState,
 };
 use diarization_commands::{
     get_speakers, run_diarization, start_diarization, stop_diarization, DiarizationState,
@@ -56,6 +57,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             stop_diarization,
             run_diarization,
             get_speakers,
+            toggle_mini_view,
+            focus_main_window,
         ]);
 
     #[cfg(debug_assertions)]

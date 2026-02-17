@@ -28,4 +28,12 @@ export default defineConfig({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        mini: path.resolve(__dirname, "mini.html"),
+      },
+    },
+  },
 });

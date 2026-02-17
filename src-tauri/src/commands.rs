@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::audio::screen_capture::ScreenCaptureKitCapture;
 use crate::audio::{AudioCapture, AudioConfig, CaptureState};
@@ -75,6 +75,40 @@ pub fn end_session(state: State<'_, AppState>, session_id: String) -> Result<(),
 #[specta::specta]
 pub fn check_screen_capture_permission() -> Result<bool, AppError> {
     Ok(true)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn toggle_mini_view(app: tauri::AppHandle) -> Result<(), AppError> {
+    if let Some(window) = app.get_webview_window("mini-view") {
+        if window
+            .is_visible()
+            .map_err(|e| AppError::Internal(e.to_string()))?
+        {
+            window
+                .hide()
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+        } else {
+            window
+                .show()
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+            window
+                .set_focus()
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn focus_main_window(app: tauri::AppHandle) -> Result<(), AppError> {
+    if let Some(window) = app.get_webview_window("main") {
+        window
+            .set_focus()
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
