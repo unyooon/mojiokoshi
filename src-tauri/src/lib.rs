@@ -29,9 +29,10 @@ use ai_commands::{
     generate_minutes, investigate, run_ai_batch, start_ai_analysis, stop_ai_analysis, AiState,
 };
 use commands::{
-    check_screen_capture_permission, check_sidecar_status, create_session, end_session,
-    focus_main_window, get_capture_state, health_check, pause_audio_capture, resume_audio_capture,
-    start_audio_capture, stop_audio_capture, toggle_mini_view, AppState,
+    check_screen_capture_permission, check_sidecar_status, create_session, download_whisper_model,
+    end_session, focus_main_window, get_capture_state, get_whisper_model_status, health_check,
+    pause_audio_capture, resume_audio_capture, start_audio_capture, stop_audio_capture,
+    toggle_mini_view, AppState,
 };
 use diarization_commands::{
     get_speakers, run_diarization, start_diarization, stop_diarization, DiarizationState,
@@ -92,6 +93,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             delete_dictionary_keyword,
             get_all_dictionary_keywords,
             check_sidecar_status,
+            get_whisper_model_status,
+            download_whisper_model,
         ]);
 
     #[cfg(debug_assertions)]
@@ -120,11 +123,46 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             let db = Arc::new(storage::sqlite::SqliteStorage::new(db_path_str)?);
             let bridge = Arc::new(claude::ClaudeCodeBridge::new());
 
+            let whisper_model = whisper::model::model_path(&data_dir, "base");
+            let vad_path = app
+                .path()
+                .resource_dir()
+                .map_err(|e| AppError::Config(e.to_string()))?
+                .join("resources/silero_vad.onnx");
+
+            let (recognizer, vad): (
+                Arc<dyn whisper::SpeechRecognizer + Send + Sync>,
+                Arc<dyn whisper::VoiceActivityDetector + Send + Sync>,
+            ) = if whisper_model.exists() && vad_path.exists() {
+                let config = whisper::WhisperConfig {
+                    model_path: whisper_model.to_string_lossy().to_string(),
+                    language: "ja".to_string(),
+                    translate: false,
+                };
+                match (
+                    whisper::recognizer::WhisperRecognizer::new(&config),
+                    whisper::silero_vad::SileroVad::new(&vad_path, 0.5),
+                ) {
+                    (Ok(r), Ok(v)) => (Arc::new(r), Arc::new(v)),
+                    _ => (
+                        Arc::new(whisper::stub::StubRecognizer),
+                        Arc::new(whisper::stub::StubVad::default()),
+                    ),
+                }
+            } else {
+                (
+                    Arc::new(whisper::stub::StubRecognizer),
+                    Arc::new(whisper::stub::StubVad::default()),
+                )
+            };
+
             app.manage(AppState {
                 capture: Mutex::new(audio::screen_capture::ScreenCaptureKitCapture::new()),
                 storage: Arc::clone(&db),
                 pipeline_shutdown: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 pipeline_handle: Mutex::new(None),
+                vad,
+                recognizer,
             });
 
             app.manage(AiState {

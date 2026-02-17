@@ -8,7 +8,6 @@ use tauri::Emitter;
 
 use super::AudioBuffer;
 use crate::whisper::pipeline::RingBuffer;
-use crate::whisper::stub::{StubRecognizer, StubVad};
 use crate::whisper::{SpeechRecognizer, TranscriptionSegment, VoiceActivityDetector};
 
 const SAMPLE_RATE: u32 = 16000;
@@ -25,9 +24,11 @@ pub fn spawn_pipeline(
     receiver: Receiver<AudioBuffer>,
     app_handle: tauri::AppHandle,
     shutdown: Arc<AtomicBool>,
+    vad: Arc<dyn VoiceActivityDetector + Send + Sync>,
+    recognizer: Arc<dyn SpeechRecognizer + Send + Sync>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
-        run_pipeline(receiver, app_handle, shutdown);
+        run_pipeline(receiver, app_handle, shutdown, vad, recognizer);
     })
 }
 
@@ -35,10 +36,10 @@ fn run_pipeline(
     receiver: Receiver<AudioBuffer>,
     app_handle: tauri::AppHandle,
     shutdown: Arc<AtomicBool>,
+    vad: Arc<dyn VoiceActivityDetector + Send + Sync>,
+    recognizer: Arc<dyn SpeechRecognizer + Send + Sync>,
 ) {
     let mut ring_buffer = RingBuffer::new(RING_BUFFER_SECS, SAMPLE_RATE);
-    let vad = StubVad::default();
-    let recognizer = StubRecognizer;
     let mut speech_samples: usize = 0;
 
     loop {
@@ -107,6 +108,7 @@ fn emit_final(app_handle: &tauri::AppHandle, segments: &[TranscriptionSegment]) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::whisper::stub::StubVad;
     use std::sync::mpsc;
 
     #[test]
