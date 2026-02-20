@@ -53,7 +53,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
       ref={dialogRef}
       onClose={onClose}
       onClick={handleBackdropClick}
-      className="backdrop:bg-black/50 rounded-lg p-0 w-full max-w-lg max-h-[80vh] bg-background text-foreground border border-border shadow-lg"
+      className="fixed inset-0 m-auto backdrop:bg-black/50 rounded-lg p-0 w-full max-w-lg max-h-[80vh] bg-background text-foreground border border-border shadow-lg"
     >
       <div className="flex flex-col h-full max-h-[80vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
