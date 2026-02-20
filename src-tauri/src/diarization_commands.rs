@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::diarization::types::SpeakerInfo;
 use crate::diarization::{PyannoteBridge, SpeakerDiarizer};
@@ -37,6 +37,8 @@ pub fn run_diarization(
     num_speakers: Option<u32>,
 ) -> Result<Vec<crate::diarization::DiarizedSegment>, AppError> {
     let bridge = state.bridge.lock().map_err(lock_err)?;
+    // TODO: emit speaker:detected events after creating speaker DB records
+    // with { id, label, color } payload for each unique speaker.
     bridge.diarize(&audio_path, num_speakers)
 }
 
@@ -52,11 +54,17 @@ pub fn get_speakers(
 #[tauri::command]
 #[specta::specta]
 pub fn update_speaker_label(
+    app: AppHandle,
     storage: State<'_, Arc<SqliteStorage>>,
     id: String,
     label: String,
 ) -> Result<(), AppError> {
-    storage.update_speaker_label(&id, &label)
+    storage.update_speaker_label(&id, &label)?;
+    let _ = app.emit(
+        "speaker:updated",
+        serde_json::json!({ "id": id, "label": label }),
+    );
+    Ok(())
 }
 
 #[cfg(test)]
