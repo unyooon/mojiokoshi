@@ -5,6 +5,14 @@ import type { AppSettings } from "@/types";
 
 const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"];
 
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "object" && error !== null) {
+    const values = Object.values(error as Record<string, unknown>);
+    if (values.length > 0 && typeof values[0] === "string") return values[0];
+  }
+  return String(error);
+}
+
 interface AudioSettingsTabProps {
   settings: AppSettings;
   onUpdate: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
@@ -39,11 +47,12 @@ export function AudioSettingsTab({ settings, onUpdate }: AudioSettingsTabProps) 
         if (result.status === "ok") {
           checkStatus(settings.whisperModel);
         } else {
-          setDownloadError("ダウンロードに失敗しました");
+          const detail = extractErrorMessage(result.error);
+          setDownloadError(`ダウンロードに失敗しました: ${detail}`);
         }
       })
-      .catch(() => {
-        setDownloadError("ダウンロードに失敗しました");
+      .catch((err: unknown) => {
+        setDownloadError(`ダウンロードに失敗しました: ${String(err)}`);
       })
       .finally(() => {
         setIsDownloading(false);
