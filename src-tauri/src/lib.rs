@@ -130,30 +130,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .map_err(|e| AppError::Config(e.to_string()))?
                 .join("resources/silero_vad.onnx");
 
-            let (recognizer, vad): (
-                Arc<dyn whisper::SpeechRecognizer + Send + Sync>,
-                Arc<dyn whisper::VoiceActivityDetector + Send + Sync>,
-            ) = if whisper_model.exists() && vad_path.exists() {
-                let config = whisper::WhisperConfig {
-                    model_path: whisper_model.to_string_lossy().to_string(),
-                    language: "ja".to_string(),
-                    translate: false,
-                };
-                match (
-                    whisper::recognizer::WhisperRecognizer::new(&config),
-                    whisper::silero_vad::SileroVad::new(&vad_path, 0.5),
-                ) {
-                    (Ok(r), Ok(v)) => (Arc::new(r), Arc::new(v)),
-                    _ => (
-                        Arc::new(whisper::stub::StubRecognizer),
-                        Arc::new(whisper::stub::StubVad::default()),
-                    ),
-                }
+            let models = if whisper_model.exists() && vad_path.exists() {
+                whisper::load_models(&whisper_model.to_string_lossy(), &vad_path).ok()
             } else {
-                (
-                    Arc::new(whisper::stub::StubRecognizer),
-                    Arc::new(whisper::stub::StubVad::default()),
-                )
+                None
+            };
+            let (recognizer, vad) = match models {
+                Some((r, v)) => (Some(r), Some(v)),
+                None => (None, None),
             };
 
             app.manage(AppState {
@@ -161,8 +145,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 storage: Arc::clone(&db),
                 pipeline_shutdown: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 pipeline_handle: Mutex::new(None),
-                vad,
-                recognizer,
+                vad: Mutex::new(vad),
+                recognizer: Mutex::new(recognizer),
             });
 
             app.manage(AiState {
