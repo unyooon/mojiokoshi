@@ -323,6 +323,30 @@ async getAllDictionaryKeywords() : Promise<Result<DictionaryKeyword[], AppError>
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async checkSidecarStatus() : Promise<Result<SidecarStatus, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_sidecar_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getWhisperModelStatus() : Promise<Result<WhisperModelStatus, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_whisper_model_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async downloadWhisperModel(model: string) : Promise<Result<string, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_whisper_model", { model }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -392,6 +416,7 @@ confidence: number;
  * Segment start_time, used for timeline plotting.
  */
 timestamp: number; created_at: string }
+export type SidecarStatus = { ai_available: boolean; diarization_available: boolean }
 /**
  * A source reference from web search.
  */
@@ -404,6 +429,7 @@ export type SpeakerInfo = { id: string; label: string; color: string; is_self: b
  * A persisted translation of a transcript segment.
  */
 export type TranslationEntry = { id: number; session_id: string; segment_id: number; source_lang: string; target_lang: string; source_text: string; translated_text: string; created_at: string }
+export type WhisperModelStatus = "NotDownloaded" | { Downloading: { progress: number } } | { Ready: { path: string } }
 
 /** tauri-specta globals **/
 

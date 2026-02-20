@@ -113,7 +113,7 @@ mod tests {
 
     #[test]
     fn pipeline_shuts_down_on_flag() {
-        let (_sender, receiver) = mpsc::channel::<AudioBuffer>();
+        let (_sender, _receiver) = mpsc::channel::<AudioBuffer>();
         let shutdown = Arc::new(AtomicBool::new(true));
 
         // Pipeline should exit immediately since shutdown is already set
