@@ -138,7 +138,9 @@ function App() {
 
   const handleAlertOpenSettings = useCallback(() => {
     dismissAlert();
-    setSettingsOpen(true);
+    requestAnimationFrame(() => {
+      setSettingsOpen(true);
+    });
   }, [dismissAlert]);
 
   const handleCloseSettings = useCallback(() => {
