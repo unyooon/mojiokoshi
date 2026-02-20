@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { AudioSettingsTab } from "./AudioSettingsTab";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -14,8 +15,6 @@ const TABS: { key: SettingsTab; label: string }[] = [
   { key: "ai", label: "AI" },
   { key: "export", label: "Export" },
 ];
-
-const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"];
 
 const LANGUAGES = [
   { code: "ja", label: "Japanese" },
@@ -144,43 +143,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
             </>
           )}
 
-          {tab === "audio" && (
-            <>
-              <label className="block space-y-1">
-                <span className="text-sm font-medium">Whisper Model</span>
-                <select
-                  value={settings.whisperModel}
-                  onChange={(e) => {
-                    update("whisperModel", e.target.value);
-                  }}
-                  className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-                >
-                  {WHISPER_MODELS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block space-y-1">
-                <span className="text-sm font-medium">
-                  VAD Sensitivity: {settings.vadSensitivity.toFixed(2)}
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={settings.vadSensitivity}
-                  onChange={(e) => {
-                    update("vadSensitivity", Number(e.target.value));
-                  }}
-                  className="w-full"
-                />
-              </label>
-            </>
-          )}
+          {tab === "audio" && <AudioSettingsTab settings={settings} onUpdate={update} />}
 
           {tab === "ai" && (
             <label className="block space-y-1">

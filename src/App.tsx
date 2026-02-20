@@ -26,6 +26,7 @@ function App() {
   const [captureError, setCaptureError] = useState<string | null>(null);
 
   const theme = useSettingsStore((s) => s.settings.theme);
+  const whisperModel = useSettingsStore((s) => s.settings.whisperModel);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
 
   useTheme(theme);
@@ -33,8 +34,10 @@ function App() {
   useAiAnalysis(sessionId, isRecording);
   useSpeakerEvents(isRecording);
 
-  const { modelReady, showModelAlert, dismissAlert, checkModelStatus } =
-    useModelStatus(isConnected);
+  const { modelReady, showModelAlert, dismissAlert, checkModelStatus } = useModelStatus(
+    isConnected,
+    whisperModel,
+  );
 
   useEffect(() => {
     void loadSettings();
@@ -145,8 +148,8 @@ function App() {
 
   const handleCloseSettings = useCallback(() => {
     setSettingsOpen(false);
-    checkModelStatus();
-  }, [checkModelStatus]);
+    checkModelStatus(whisperModel);
+  }, [checkModelStatus, whisperModel]);
 
   const handleOpenExport = useCallback(() => {
     setExportOpen(true);

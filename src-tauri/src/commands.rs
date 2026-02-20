@@ -165,9 +165,10 @@ pub async fn focus_main_window(app: tauri::AppHandle) -> Result<(), AppError> {
 #[specta::specta]
 pub async fn get_whisper_model_status(
     app: tauri::AppHandle,
+    model: String,
 ) -> Result<WhisperModelStatus, AppError> {
     let data_dir = app.path().app_data_dir().map_err(config_err)?;
-    Ok(crate::whisper::model::check_model(&data_dir, "base"))
+    Ok(crate::whisper::model::check_model(&data_dir, &model))
 }
 
 #[tauri::command]

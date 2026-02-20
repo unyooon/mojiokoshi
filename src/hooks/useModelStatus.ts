@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 import { getWhisperModelStatus, type WhisperModelStatus } from "@/commands/whisperModel";
 
-export function useModelStatus(isConnected: boolean) {
+export function useModelStatus(isConnected: boolean, model: string) {
   const [modelReady, setModelReady] = useState(false);
   const [showModelAlert, setShowModelAlert] = useState(false);
 
-  const checkModelStatus = useCallback(() => {
-    getWhisperModelStatus()
+  const checkModelStatus = useCallback((targetModel: string) => {
+    getWhisperModelStatus(targetModel)
       .then((result) => {
         if (result.status === "ok") {
           const data: WhisperModelStatus = result.data;
@@ -15,6 +15,7 @@ export function useModelStatus(isConnected: boolean) {
             setShowModelAlert(true);
           } else if (typeof data === "object" && "Ready" in data) {
             setModelReady(true);
+            setShowModelAlert(false);
           }
         }
       })
@@ -25,8 +26,8 @@ export function useModelStatus(isConnected: boolean) {
 
   useEffect(() => {
     if (!isConnected) return;
-    checkModelStatus();
-  }, [isConnected, checkModelStatus]);
+    checkModelStatus(model);
+  }, [isConnected, model, checkModelStatus]);
 
   const dismissAlert = useCallback(() => {
     setShowModelAlert(false);
