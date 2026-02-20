@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
+import { render, screen, waitFor, fireEvent, act, cleanup } from "@testing-library/react";
 import App from "./App";
 import { commands } from "./bindings";
+import { invoke } from "@tauri-apps/api/core";
 
 vi.mock("./bindings", () => ({
   commands: {
@@ -53,6 +54,16 @@ beforeAll(() => {
 });
 
 describe("App", () => {
+  afterEach(async () => {
+    cleanup();
+    // Flush pending async effects from useModelStatus and other hooks
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: healthCheck never resolves (stays in loading state)
@@ -65,6 +76,14 @@ describe("App", () => {
     mockStopCapture.mockResolvedValue({ status: "ok", data: null });
     mockPauseCapture.mockResolvedValue({ status: "ok", data: null });
     mockResumeCapture.mockResolvedValue({ status: "ok", data: null });
+
+    // Mock invoke for useModelStatus hook (getWhisperModelStatus)
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === "get_whisper_model_status") {
+        return Promise.resolve({ Ready: { path: "/models/whisper" } });
+      }
+      return Promise.resolve(undefined);
+    });
   });
 
   it("renders loading state initially", () => {
@@ -148,11 +167,17 @@ describe("App", () => {
 
     render(<App />);
 
+    // Wait for model status check to settle and button to be enabled
     await waitFor(() => {
-      expect(screen.getByText("Start Recording")).toBeVisible();
+      const btn = screen.getByText("Start Recording");
+      expect(btn).toBeVisible();
+      expect(btn).toBeEnabled();
     });
 
-    fireEvent.click(screen.getByText("Start Recording"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Start Recording"));
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Pause")).toBeVisible();
