@@ -151,7 +151,9 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText("Start Recording")).toBeVisible();
+      const btn = screen.getByText("Start Recording");
+      expect(btn).toBeVisible();
+      expect(btn).toBeEnabled();
     });
 
     fireEvent.click(screen.getByText("Start Recording"));
