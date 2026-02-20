@@ -12,6 +12,7 @@ interface MeetingControlsProps {
   onExport?: () => void;
   hasSession?: boolean;
   error?: string | null;
+  modelReady?: boolean;
 }
 
 export function MeetingControls({
@@ -24,6 +25,7 @@ export function MeetingControls({
   onExport,
   hasSession = false,
   error = null,
+  modelReady = true,
 }: MeetingControlsProps) {
   const isRecording = meetingState === "recording";
   const isPaused = meetingState === "paused";
@@ -71,12 +73,18 @@ export function MeetingControls({
           </button>
         )}
         {isIdle ? (
-          <button
-            onClick={handleStart}
-            className="rounded-md bg-red-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-600 transition-colors"
-          >
-            Start Recording
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleStart}
+              disabled={!modelReady}
+              className="rounded-md bg-red-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start Recording
+            </button>
+            {!modelReady && (
+              <span className="text-xs text-muted-foreground">Whisperモデルが必要です</span>
+            )}
+          </div>
         ) : (
           <>
             {isRecording ? (

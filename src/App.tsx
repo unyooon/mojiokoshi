@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { commands } from "./bindings";
 import type { MeetingState } from "./types";
 import { MeetingControls } from "./components/meeting/MeetingControls";
+import { ModelAlert } from "./components/ModelAlert";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
 import { ExportDialog } from "./components/meeting/ExportDialog";
@@ -9,6 +10,7 @@ import { useTauriEvents } from "./hooks/useTauriEvents";
 import { useAiAnalysis } from "./hooks/useAiAnalysis";
 import { useSpeakerEvents } from "./hooks/useSpeakerEvents";
 import { useTheme } from "./hooks/useTheme";
+import { useModelStatus } from "./hooks/useModelStatus";
 import { useSettingsStore } from "./stores/settingsStore";
 
 function App() {
@@ -30,6 +32,9 @@ function App() {
   useTauriEvents();
   useAiAnalysis(sessionId, isRecording);
   useSpeakerEvents(isRecording);
+
+  const { modelReady, showModelAlert, dismissAlert, checkModelStatus } =
+    useModelStatus(isConnected);
 
   useEffect(() => {
     void loadSettings();
@@ -131,9 +136,15 @@ function App() {
     setRecordingStartTime(null);
   }, []);
 
+  const handleAlertOpenSettings = useCallback(() => {
+    dismissAlert();
+    setSettingsOpen(true);
+  }, [dismissAlert]);
+
   const handleCloseSettings = useCallback(() => {
     setSettingsOpen(false);
-  }, []);
+    checkModelStatus();
+  }, [checkModelStatus]);
 
   const handleOpenExport = useCallback(() => {
     setExportOpen(true);
@@ -166,10 +177,16 @@ function App() {
         onExport={handleOpenExport}
         hasSession={lastSessionId !== null}
         error={captureError}
+        modelReady={modelReady}
       />
       <MainLayout sessionId={lastSessionId} />
       <SettingsDialog open={settingsOpen} onClose={handleCloseSettings} />
       <ExportDialog open={exportOpen} onClose={handleCloseExport} sessionId={lastSessionId} />
+      <ModelAlert
+        open={showModelAlert}
+        onOpenSettings={handleAlertOpenSettings}
+        onDismiss={dismissAlert}
+      />
     </div>
   );
 }
