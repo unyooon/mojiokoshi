@@ -150,6 +150,14 @@ async getSpeakers(sessionId: string) : Promise<Result<SpeakerInfo[], AppError>> 
     else return { status: "error", error: e  as any };
 }
 },
+async updateSpeakerLabel(id: string, label: string) : Promise<Result<null, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_speaker_label", { id, label }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async toggleMiniView() : Promise<Result<null, AppError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("toggle_mini_view") };
@@ -332,9 +340,9 @@ async checkSidecarStatus() : Promise<Result<SidecarStatus, AppError>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getWhisperModelStatus() : Promise<Result<WhisperModelStatus, AppError>> {
+async getWhisperModelStatus(model: string) : Promise<Result<WhisperModelStatus, AppError>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_whisper_model_status") };
+    return { status: "ok", data: await TAURI_INVOKE("get_whisper_model_status", { model }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
