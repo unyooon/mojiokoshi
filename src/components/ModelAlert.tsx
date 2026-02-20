@@ -31,7 +31,7 @@ export function ModelAlert({ open, onOpenSettings, onDismiss }: ModelAlertProps)
       ref={dialogRef}
       onClose={onDismiss}
       onClick={handleBackdropClick}
-      className="fixed inset-0 m-auto backdrop:bg-black/50 rounded-lg p-0 w-full max-w-md bg-background text-foreground border border-border shadow-lg"
+      className="m-auto backdrop:bg-black/50 rounded-lg p-0 w-full max-w-md bg-background text-foreground border border-border shadow-lg"
     >
       <div className="p-6">
         <h2 className="text-lg font-semibold">Whisper モデルが必要です</h2>
