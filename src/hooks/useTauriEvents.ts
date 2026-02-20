@@ -8,6 +8,26 @@ interface TauriEventPayload<T> {
   payload: T;
 }
 
+interface TranscriptEvent {
+  id: string;
+  timestamp: number;
+  text: string;
+  startMs: number;
+  endMs: number;
+  confidence: number;
+  isPartial: boolean;
+}
+
+function toTranscriptEntry(event: TranscriptEvent): TranscriptEntry {
+  return {
+    id: event.id,
+    timestamp: event.timestamp,
+    text: event.text,
+    confidence: event.confidence,
+    isPartial: event.isPartial,
+  };
+}
+
 export function useTauriEvents() {
   const addEntry = useTranscriptStore((s) => s.addEntry);
   const updatePartial = useTranscriptStore((s) => s.updatePartial);
@@ -23,17 +43,17 @@ export function useTauriEvents() {
 
         if (!mountedRef.current) return;
 
-        const unlistenFinal = await listen<TranscriptEntry>(
+        const unlistenFinal = await listen<TranscriptEvent>(
           "transcript:final",
-          (event: TauriEventPayload<TranscriptEntry>) => {
-            addEntry(event.payload);
+          (event: TauriEventPayload<TranscriptEvent>) => {
+            addEntry(toTranscriptEntry(event.payload));
           },
         );
 
-        const unlistenPartial = await listen<TranscriptEntry>(
+        const unlistenPartial = await listen<TranscriptEvent>(
           "transcript:partial",
-          (event: TauriEventPayload<TranscriptEntry>) => {
-            updatePartial(event.payload);
+          (event: TauriEventPayload<TranscriptEvent>) => {
+            updatePartial(toTranscriptEntry(event.payload));
           },
         );
 
