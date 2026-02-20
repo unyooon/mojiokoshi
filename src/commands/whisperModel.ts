@@ -13,11 +13,13 @@ export type WhisperModelStatus =
   | { Downloading: { progress: number } }
   | { Ready: { path: string } };
 
-export async function getWhisperModelStatus(): Promise<Result<WhisperModelStatus, AppError>> {
+export async function getWhisperModelStatus(
+  model: string,
+): Promise<Result<WhisperModelStatus, AppError>> {
   try {
     return {
       status: "ok",
-      data: await invoke<WhisperModelStatus>("get_whisper_model_status"),
+      data: await invoke<WhisperModelStatus>("get_whisper_model_status", { model }),
     };
   } catch (e: unknown) {
     if (e instanceof Error) throw e;

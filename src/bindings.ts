@@ -332,9 +332,9 @@ async checkSidecarStatus() : Promise<Result<SidecarStatus, AppError>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getWhisperModelStatus() : Promise<Result<WhisperModelStatus, AppError>> {
+async getWhisperModelStatus(model: string) : Promise<Result<WhisperModelStatus, AppError>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_whisper_model_status") };
+    return { status: "ok", data: await TAURI_INVOKE("get_whisper_model_status", { model }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
