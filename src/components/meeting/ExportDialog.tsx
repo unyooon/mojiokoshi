@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { ExportOptionsForm } from "./ExportOptionsForm";
 import type { ExportOptions } from "./ExportOptionsForm";
+import { commands } from "@/bindings";
+import type { ExportOptions as BackendExportOptions } from "@/bindings";
 
 interface ExportDialogProps {
   open: boolean;
@@ -27,6 +29,7 @@ export function ExportDialog({ open, onClose, sessionId }: ExportDialogProps) {
     include_transcript: true,
   });
   const [markdown, setMarkdown] = useState<string | null>(null);
+  const [filename, setFilename] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -40,6 +43,7 @@ export function ExportDialog({ open, onClose, sessionId }: ExportDialogProps) {
   useEffect(() => {
     if (!open) {
       setMarkdown(null);
+      setFilename(null);
       setCopied(false);
     }
   }, [open]);
@@ -59,9 +63,15 @@ export function ExportDialog({ open, onClose, sessionId }: ExportDialogProps) {
     if (!sessionId || isLoading) return;
     setIsLoading(true);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const result = await invoke<string>("export_markdown", { sessionId, options });
-      setMarkdown(result);
+      const backendOptions: BackendExportOptions = {
+        session_id: sessionId,
+        ...options,
+      };
+      const result = await commands.exportMarkdown(backendOptions);
+      if (result.status === "ok") {
+        setMarkdown(result.data.content);
+        setFilename(result.data.filename);
+      }
     } catch {
       /* Tauri API not available */
     } finally {
@@ -79,14 +89,13 @@ export function ExportDialog({ open, onClose, sessionId }: ExportDialogProps) {
   }, [markdown]);
 
   const handleSave = useCallback(async () => {
-    if (!markdown || !sessionId) return;
+    if (!markdown || !filename) return;
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("save_export_file", { sessionId, content: markdown });
+      await commands.saveExportFile(markdown, filename);
     } catch {
       downloadAsFile(markdown);
     }
-  }, [markdown, sessionId]);
+  }, [markdown, filename]);
 
   return (
     <dialog
