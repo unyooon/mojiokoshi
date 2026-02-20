@@ -49,6 +49,16 @@ pub fn get_speakers(
     storage.get_speakers(&session_id)
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn update_speaker_label(
+    storage: State<'_, Arc<SqliteStorage>>,
+    id: String,
+    label: String,
+) -> Result<(), AppError> {
+    storage.update_speaker_label(&id, &label)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,6 +92,19 @@ mod tests {
         let segments = bridge.diarize("/tmp/test.wav", Some(2)).unwrap();
         assert!(!segments.is_empty());
         assert_eq!(segments[0].speaker, "SPEAKER_0");
+    }
+
+    #[test]
+    fn update_speaker_label_via_storage() {
+        let storage = SqliteStorage::in_memory().unwrap();
+        use crate::storage::SessionStorage;
+        let sid = storage.create_session("Update Label").unwrap();
+        let id = storage
+            .insert_speaker(&sid, "Speaker_0", "#ff0000")
+            .unwrap();
+        storage.update_speaker_label(&id, "Alice").unwrap();
+        let speakers = storage.get_speakers(&sid).unwrap();
+        assert_eq!(speakers[0].label, "Alice");
     }
 
     #[test]

@@ -35,7 +35,8 @@ use commands::{
     toggle_mini_view, AppState,
 };
 use diarization_commands::{
-    get_speakers, run_diarization, start_diarization, stop_diarization, DiarizationState,
+    get_speakers, run_diarization, start_diarization, stop_diarization, update_speaker_label,
+    DiarizationState,
 };
 use error::AppError;
 use export_commands::{export_markdown, save_export_file};
@@ -74,6 +75,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             stop_diarization,
             run_diarization,
             get_speakers,
+            update_speaker_label,
             toggle_mini_view,
             focus_main_window,
             search_transcripts,

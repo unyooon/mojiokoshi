@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import type { Speaker } from "@/types";
 import { SPEAKER_COLOR_CLASSES } from "@/types";
 import { useSpeakerStore } from "@/stores/speakerStore";
+import { commands } from "@/bindings";
 
 function SpeakerRow({
   speaker,
@@ -88,14 +89,9 @@ export function SpeakerPanel() {
   const handleRename = useCallback(
     (id: string, label: string) => {
       updateLabel(id, label);
-      void (async () => {
-        try {
-          const { invoke } = await import("@tauri-apps/api/core");
-          await invoke("update_speaker_label", { id, label });
-        } catch {
-          // Tauri not available
-        }
-      })();
+      void commands.updateSpeakerLabel(id, label).catch(() => {
+        // Tauri not available
+      });
     },
     [updateLabel],
   );

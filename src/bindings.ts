@@ -150,6 +150,14 @@ async getSpeakers(sessionId: string) : Promise<Result<SpeakerInfo[], AppError>> 
     else return { status: "error", error: e  as any };
 }
 },
+async updateSpeakerLabel(id: string, label: string) : Promise<Result<null, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_speaker_label", { id, label }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async toggleMiniView() : Promise<Result<null, AppError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("toggle_mini_view") };
