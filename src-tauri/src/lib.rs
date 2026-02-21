@@ -125,7 +125,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             let db = Arc::new(storage::sqlite::SqliteStorage::new(db_path_str)?);
             let bridge = Arc::new(claude::ClaudeCodeBridge::new());
 
-            let whisper_model = whisper::model::model_path(&data_dir, "base");
+            let preferred_model = db
+                .get_setting("whisperModel")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| "large-v3-turbo".to_string());
+            let whisper_model = whisper::model::model_path(&data_dir, &preferred_model);
             let vad_path = app
                 .path()
                 .resource_dir()
