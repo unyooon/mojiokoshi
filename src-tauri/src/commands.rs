@@ -1,3 +1,4 @@
+use log::info;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -45,6 +46,7 @@ pub fn start_audio_capture(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), AppError> {
+    info!("start_audio_capture called");
     let vad = state.vad.lock().map_err(lock_err)?;
     let recognizer = state.recognizer.lock().map_err(lock_err)?;
     let vad_arc = vad.as_ref().ok_or_else(model_not_downloaded)?.clone();
@@ -59,6 +61,7 @@ pub fn start_audio_capture(
     let (sender, receiver) = std::sync::mpsc::channel::<AudioBuffer>();
     capture.start(&AudioConfig::default(), sender)?;
 
+    info!("Audio capture started, spawning processing pipeline");
     state.pipeline_shutdown.store(false, Ordering::Release);
     let handle = spawn_pipeline(
         receiver,
@@ -75,6 +78,7 @@ pub fn start_audio_capture(
 #[tauri::command]
 #[specta::specta]
 pub fn stop_audio_capture(state: State<'_, AppState>) -> Result<(), AppError> {
+    info!("stop_audio_capture called");
     state.pipeline_shutdown.store(true, Ordering::Release);
     let mut capture = state.capture.lock().map_err(lock_err)?;
     capture.stop()?;
@@ -192,6 +196,7 @@ pub async fn download_whisper_model(
     let (r, v) = crate::whisper::load_models(&path_str, &vad_path)?;
     *state.recognizer.lock().map_err(lock_err)? = Some(r);
     *state.vad.lock().map_err(lock_err)? = Some(v);
+    info!("Whisper model downloaded and loaded: {path_str}");
     Ok(path_str)
 }
 

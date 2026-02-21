@@ -6,6 +6,8 @@ pub mod types;
 
 pub use types::*;
 
+use log::info;
+
 use crate::error::AppError;
 
 /// Speech recognition trait for converting audio to text.
@@ -51,6 +53,11 @@ pub fn load_models(model_path: &str, vad_path: &Path) -> Result<ModelPair, AppEr
     };
     let r = recognizer::WhisperRecognizer::new(&config)?;
     let v = silero_vad::SileroVad::new(vad_path, 0.5)?;
+    info!(
+        "Models loaded: whisper={}, vad={}",
+        model_path,
+        vad_path.display()
+    );
     Ok((Arc::new(r), Arc::new(v)))
 }
 

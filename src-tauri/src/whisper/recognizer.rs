@@ -1,3 +1,4 @@
+use log::{debug, info};
 use std::sync::Mutex;
 
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
@@ -20,6 +21,10 @@ impl WhisperRecognizer {
         let params = WhisperContextParameters::default();
         let ctx =
             WhisperContext::new_with_params(&config.model_path, params).map_err(whisper_err)?;
+        info!(
+            "WhisperRecognizer initialized (model={}, lang={})",
+            config.model_path, config.language
+        );
         Ok(Self {
             ctx: Mutex::new(ctx),
             language: config.language.clone(),
@@ -34,6 +39,11 @@ impl SpeechRecognizer for WhisperRecognizer {
         samples: &[f32],
         _sample_rate: u32,
     ) -> Result<Vec<TranscriptionSegment>, AppError> {
+        debug!(
+            "Transcribing {} samples ({:.1}s of audio)",
+            samples.len(),
+            samples.len() as f32 / 16000.0
+        );
         let ctx = self
             .ctx
             .lock()

@@ -1,4 +1,5 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use log::debug;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
@@ -16,11 +17,16 @@ const SAMPLE_RATE: u32 = 16000;
 pub struct AudioOutputHandler {
     sender: Sender<AudioBuffer>,
     paused: Arc<AtomicBool>,
+    buffer_count: AtomicU64,
 }
 
 impl AudioOutputHandler {
     pub fn new(sender: Sender<AudioBuffer>, paused: Arc<AtomicBool>) -> Self {
-        Self { sender, paused }
+        Self {
+            sender,
+            paused,
+            buffer_count: AtomicU64::new(0),
+        }
     }
 }
 
@@ -54,6 +60,7 @@ impl SCStreamOutputTrait for AudioOutputHandler {
                 0.0
             };
 
+            let sample_count = samples.len();
             let buffer = AudioBuffer {
                 samples,
                 sample_rate: SAMPLE_RATE,
@@ -62,6 +69,11 @@ impl SCStreamOutputTrait for AudioOutputHandler {
 
             // Ignore send errors — the receiver may have been dropped.
             let _ = self.sender.send(buffer);
+
+            let count = self.buffer_count.fetch_add(1, Ordering::Relaxed) + 1;
+            if count % 100 == 1 {
+                debug!("Audio buffer #{count}: {sample_count} samples, ts={timestamp_ms:.0}ms");
+            }
         }
     }
 }

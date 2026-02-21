@@ -1,3 +1,4 @@
+use log::info;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
@@ -95,6 +96,10 @@ impl AudioCapture for ScreenCaptureKitCapture {
         self.paused.store(false, Ordering::Release);
         self.stream = Some(stream);
         self.state.store(STATE_CAPTURING, Ordering::Release);
+        info!(
+            "ScreenCaptureKit stream started (sample_rate={}, channels={})",
+            config.sample_rate, config.channel_count
+        );
         Ok(())
     }
 
@@ -108,6 +113,7 @@ impl AudioCapture for ScreenCaptureKitCapture {
         self.config = None;
         self.paused.store(false, Ordering::Release);
         self.state.store(STATE_IDLE, Ordering::Release);
+        info!("ScreenCaptureKit stream stopped");
         Ok(())
     }
 

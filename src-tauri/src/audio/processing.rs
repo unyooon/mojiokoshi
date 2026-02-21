@@ -1,3 +1,4 @@
+use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
@@ -41,6 +42,12 @@ fn run_pipeline(
     vad: Arc<dyn VoiceActivityDetector + Send + Sync>,
     recognizer: Arc<dyn SpeechRecognizer + Send + Sync>,
 ) {
+    info!(
+        "Audio processing pipeline started (ring_buffer={}s, speech_threshold={}s)",
+        RING_BUFFER_SECS,
+        SPEECH_THRESHOLD_SAMPLES as f32 / SAMPLE_RATE as f32
+    );
+
     let mut ring_buffer = RingBuffer::new(RING_BUFFER_SECS, SAMPLE_RATE);
     let mut speech_samples: usize = 0;
 
@@ -52,25 +59,54 @@ fn run_pipeline(
         match receiver.recv_timeout(RECV_TIMEOUT) {
             Ok(audio_buf) => {
                 ring_buffer.push_samples(&audio_buf.samples);
+                debug!("Received audio chunk: {} samples", audio_buf.samples.len());
 
-                if vad
+                let is_speech = vad
                     .is_speech(&audio_buf.samples, SAMPLE_RATE)
-                    .unwrap_or(false)
-                {
+                    .unwrap_or(false);
+
+                if is_speech {
                     speech_samples += audio_buf.samples.len();
+                    if speech_samples == audio_buf.samples.len() {
+                        info!("Speech detected, accumulating...");
+                    }
                 } else {
                     // Reset counter on silence
                     if speech_samples > 0 && speech_samples < SPEECH_THRESHOLD_SAMPLES {
+                        debug!(
+                            "Speech ended before threshold ({:.1}s < 3.0s), resetting",
+                            speech_samples as f32 / SAMPLE_RATE as f32
+                        );
                         speech_samples = 0;
                     }
                 }
 
                 if speech_samples >= SPEECH_THRESHOLD_SAMPLES {
                     let samples = ring_buffer.samples();
+                    info!(
+                        "Speech threshold reached ({:.1}s), running transcription on {} samples",
+                        speech_samples as f32 / SAMPLE_RATE as f32,
+                        samples.len()
+                    );
                     emit_partial(&app_handle, &samples);
 
-                    if let Ok(segments) = recognizer.transcribe(&samples, SAMPLE_RATE) {
-                        emit_final(&app_handle, &segments);
+                    match recognizer.transcribe(&samples, SAMPLE_RATE) {
+                        Ok(segments) => {
+                            info!("Transcription complete: {} segments", segments.len());
+                            for (i, seg) in segments.iter().enumerate() {
+                                info!(
+                                    "  Segment {}: \"{}\" ({:.0}ms-{:.0}ms)",
+                                    i,
+                                    seg.text.trim(),
+                                    seg.start_ms,
+                                    seg.end_ms
+                                );
+                            }
+                            emit_final(&app_handle, &segments);
+                        }
+                        Err(e) => {
+                            warn!("Transcription failed: {e}");
+                        }
                     }
 
                     ring_buffer.clear();
@@ -82,11 +118,13 @@ fn run_pipeline(
                 continue;
             }
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                // Sender dropped — pipeline is done
+                info!("Audio channel disconnected, pipeline exiting");
                 break;
             }
         }
     }
+
+    info!("Audio processing pipeline stopped");
 }
 
 fn now_epoch_ms() -> i64 {
