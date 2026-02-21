@@ -14,7 +14,7 @@ function getSelectionData(): { query: string; context: string } | null {
   const idx = parseInt(el?.closest("[data-index]")?.getAttribute("data-index") ?? "0", 10);
   const context = entries
     .slice(Math.max(0, idx - 5), Math.min(entries.length, idx + 6))
-    .map((e) => `[${e.speakerName}] ${e.text}`)
+    .map((e) => (e.speakerName ? `[${e.speakerName}] ${e.text}` : e.text))
     .join("\n");
   return { query, context };
 }

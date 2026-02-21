@@ -40,7 +40,7 @@ export function KeywordPopover({ keyword, children }: KeywordPopoverProps) {
     const entries = useTranscriptStore.getState().entries;
     const context = entries
       .slice(-10)
-      .map((e) => `[${e.speakerName}] ${e.text}`)
+      .map((e) => (e.speakerName ? `[${e.speakerName}] ${e.text}` : e.text))
       .join("\n");
     void invoke<InvestigationResult>("investigate", { query: keyword.term, context })
       .then((result) => {
