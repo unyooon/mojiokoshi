@@ -114,7 +114,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(specta_builder.invoke_handler())
         .setup(move |app| {
-            env_logger::init();
+            env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+                .init();
             info!("MojiOkoshi backend starting");
 
             specta_builder.mount_events(app);
