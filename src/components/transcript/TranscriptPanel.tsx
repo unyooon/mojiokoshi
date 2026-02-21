@@ -130,7 +130,7 @@ export function TranscriptPanel() {
                     <SegmentLine
                       entry={entry}
                       keywords={keywords}
-                      speaker={speakers.get(entry.speakerId)}
+                      speaker={entry.speakerId ? speakers.get(entry.speakerId) : undefined}
                       searchActive={searchIsOpen && searchQuery.length > 0}
                     />
                   </div>

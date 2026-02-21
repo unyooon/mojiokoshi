@@ -45,11 +45,14 @@ export function SegmentLine({ entry, keywords, speaker, searchActive }: SegmentL
             />
             {speaker.label}
           </span>
-        ) : (
-          <span className="text-xs font-medium mr-2" style={{ color: entry.speakerColor.text }}>
+        ) : entry.speakerName ? (
+          <span
+            className="text-xs font-medium mr-2"
+            style={entry.speakerColor ? { color: entry.speakerColor.text } : undefined}
+          >
             {entry.speakerName}
           </span>
-        )}
+        ) : null}
         <span className="text-sm">{renderText()}</span>
       </div>
     </div>

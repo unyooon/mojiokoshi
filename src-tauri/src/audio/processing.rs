@@ -8,7 +8,9 @@ use tauri::Emitter;
 
 use super::AudioBuffer;
 use crate::whisper::pipeline::RingBuffer;
-use crate::whisper::{SpeechRecognizer, TranscriptionSegment, VoiceActivityDetector};
+use crate::whisper::{
+    SpeechRecognizer, TranscriptEvent, TranscriptionSegment, VoiceActivityDetector,
+};
 
 const SAMPLE_RATE: u32 = 16000;
 const RING_BUFFER_SECS: f32 = 30.0;
@@ -87,21 +89,41 @@ fn run_pipeline(
     }
 }
 
+fn now_epoch_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
 fn emit_partial(app_handle: &tauri::AppHandle, samples: &[f32]) {
+    let now = now_epoch_ms();
     let duration_ms = (samples.len() as f64 / SAMPLE_RATE as f64) * 1000.0;
-    let segment = TranscriptionSegment {
-        text: String::new(),
+    let event = TranscriptEvent {
+        id: uuid::Uuid::new_v4().to_string(),
+        timestamp: now,
+        text: "...".to_string(),
         start_ms: 0.0,
         end_ms: duration_ms,
         confidence: 0.0,
         is_partial: true,
     };
-    let _ = app_handle.emit("transcript:partial", &segment);
+    let _ = app_handle.emit("transcript:partial", &event);
 }
 
 fn emit_final(app_handle: &tauri::AppHandle, segments: &[TranscriptionSegment]) {
+    let now = now_epoch_ms();
     for segment in segments {
-        let _ = app_handle.emit("transcript:final", segment);
+        let event = TranscriptEvent {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: now,
+            text: segment.text.clone(),
+            start_ms: segment.start_ms,
+            end_ms: segment.end_ms,
+            confidence: segment.confidence,
+            is_partial: false,
+        };
+        let _ = app_handle.emit("transcript:final", &event);
     }
 }
 

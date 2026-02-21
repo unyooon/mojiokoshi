@@ -18,11 +18,11 @@ export interface SpeakerColorStyle {
 export interface TranscriptEntry {
   id: string;
   timestamp: number;
-  speakerId: string;
-  speakerName: string;
-  speakerColor: SpeakerColorStyle;
+  speakerId?: string;
+  speakerName?: string;
+  speakerColor?: SpeakerColorStyle;
   text: string;
-  keywords: Keyword[];
+  keywords?: Keyword[];
   isPartial: boolean;
   confidence: number;
 }
