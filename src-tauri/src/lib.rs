@@ -21,6 +21,7 @@ pub mod test_helpers;
 #[cfg(test)]
 mod integration_tests;
 
+use log::info;
 use std::sync::{Arc, Mutex};
 
 use tauri::Manager;
@@ -113,6 +114,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(specta_builder.invoke_handler())
         .setup(move |app| {
+            env_logger::init();
+            info!("MojiOkoshi backend starting");
+
             specta_builder.mount_events(app);
 
             let data_dir = app.path().app_data_dir()?;
@@ -130,6 +134,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .ok()
                 .flatten()
                 .unwrap_or_else(|| "large-v3-turbo".to_string());
+            info!("Preferred whisper model: {preferred_model}");
             let whisper_model = whisper::model::model_path(&data_dir, &preferred_model);
             let vad_path = app
                 .path()
@@ -146,6 +151,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 Some((r, v)) => (Some(r), Some(v)),
                 None => (None, None),
             };
+
+            if recognizer.is_some() {
+                info!("Whisper model loaded successfully");
+            } else {
+                log::warn!(
+                    "Whisper model not loaded at startup (model file: {})",
+                    whisper_model.display()
+                );
+            }
 
             app.manage(AppState {
                 capture: Mutex::new(audio::screen_capture::ScreenCaptureKitCapture::new()),
