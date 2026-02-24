@@ -16,7 +16,15 @@ use crate::whisper::{
 const SAMPLE_RATE: u32 = 16000;
 const RING_BUFFER_SECS: f32 = 30.0;
 const SPEECH_THRESHOLD_SAMPLES: usize = SAMPLE_RATE as usize * 3; // 3 seconds
+const VAD_CHUNK_SIZE: usize = 512; // Silero VAD v5 expects 512 samples at 16kHz
 const RECV_TIMEOUT: Duration = Duration::from_millis(100);
+/// RMS energy threshold for fallback speech detection.
+/// Used when Silero VAD returns low probabilities for system audio.
+const ENERGY_RMS_THRESHOLD: f32 = 0.02;
+/// Number of consecutive silence chunks before resetting speech counter.
+/// At 512 samples / 16kHz ≈ 32ms per chunk, 94 chunks ≈ 3s of silence.
+/// Meeting audio has frequent pauses between speakers.
+const SILENCE_CHUNKS_TO_RESET: usize = 94;
 
 /// Spawn the audio processing pipeline on a background thread.
 ///
@@ -50,6 +58,8 @@ fn run_pipeline(
 
     let mut ring_buffer = RingBuffer::new(RING_BUFFER_SECS, SAMPLE_RATE);
     let mut speech_samples: usize = 0;
+    let mut silence_chunks: usize = 0;
+    let mut vad_buf: Vec<f32> = Vec::with_capacity(VAD_CHUNK_SIZE);
 
     loop {
         if shutdown.load(Ordering::Acquire) {
@@ -59,25 +69,46 @@ fn run_pipeline(
         match receiver.recv_timeout(RECV_TIMEOUT) {
             Ok(audio_buf) => {
                 ring_buffer.push_samples(&audio_buf.samples);
-                debug!("Received audio chunk: {} samples", audio_buf.samples.len());
+                vad_buf.extend_from_slice(&audio_buf.samples);
 
-                let is_speech = vad
-                    .is_speech(&audio_buf.samples, SAMPLE_RATE)
-                    .unwrap_or(false);
+                // Run VAD on full 512-sample chunks (no zero-padding)
+                while vad_buf.len() >= VAD_CHUNK_SIZE {
+                    let chunk: Vec<f32> = vad_buf.drain(..VAD_CHUNK_SIZE).collect();
+                    let vad_prob = vad
+                        .speech_probability(&chunk, SAMPLE_RATE)
+                        .unwrap_or(0.0);
+                    // Energy-based fallback: RMS threshold for system audio
+                    let rms = (chunk.iter().map(|s| s * s).sum::<f32>()
+                        / chunk.len() as f32)
+                        .sqrt();
+                    let is_speech = vad_prob >= 0.5 || rms >= ENERGY_RMS_THRESHOLD;
+                    debug!(
+                        "VAD chunk: vad={vad_prob:.4}, rms={rms:.4}, speech={is_speech}"
+                    );
 
-                if is_speech {
-                    speech_samples += audio_buf.samples.len();
-                    if speech_samples == audio_buf.samples.len() {
-                        info!("Speech detected, accumulating...");
-                    }
-                } else {
-                    // Reset counter on silence
-                    if speech_samples > 0 && speech_samples < SPEECH_THRESHOLD_SAMPLES {
-                        debug!(
-                            "Speech ended before threshold ({:.1}s < 3.0s), resetting",
-                            speech_samples as f32 / SAMPLE_RATE as f32
-                        );
-                        speech_samples = 0;
+                    if is_speech {
+                        speech_samples += VAD_CHUNK_SIZE;
+                        silence_chunks = 0;
+                        if speech_samples == VAD_CHUNK_SIZE {
+                            info!(
+                                "Speech detected (vad={vad_prob:.4}, rms={rms:.4}), accumulating..."
+                            );
+                        }
+                    } else {
+                        silence_chunks += 1;
+                        if speech_samples > 0
+                            && speech_samples < SPEECH_THRESHOLD_SAMPLES
+                            && silence_chunks >= SILENCE_CHUNKS_TO_RESET
+                        {
+                            debug!(
+                                "Silence for {:.1}s, speech was {:.1}s < 3.0s, resetting",
+                                silence_chunks as f32 * VAD_CHUNK_SIZE as f32
+                                    / SAMPLE_RATE as f32,
+                                speech_samples as f32 / SAMPLE_RATE as f32
+                            );
+                            speech_samples = 0;
+                            silence_chunks = 0;
+                        }
                     }
                 }
 
@@ -111,6 +142,7 @@ fn run_pipeline(
 
                     ring_buffer.clear();
                     speech_samples = 0;
+                    silence_chunks = 0;
                 }
             }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
@@ -218,5 +250,22 @@ mod tests {
     #[test]
     fn speech_threshold_requires_three_seconds() {
         assert_eq!(SPEECH_THRESHOLD_SAMPLES, 48000); // 16000 * 3
+    }
+
+    #[test]
+    fn energy_rms_detects_loud_audio() {
+        let loud: Vec<f32> = vec![0.3; VAD_CHUNK_SIZE];
+        let rms =
+            (loud.iter().map(|s| s * s).sum::<f32>() / loud.len() as f32).sqrt();
+        assert!(rms >= ENERGY_RMS_THRESHOLD);
+    }
+
+    #[test]
+    fn energy_rms_ignores_silence() {
+        let silent: Vec<f32> = vec![0.001; VAD_CHUNK_SIZE];
+        let rms = (silent.iter().map(|s| s * s).sum::<f32>()
+            / silent.len() as f32)
+            .sqrt();
+        assert!(rms < ENERGY_RMS_THRESHOLD);
     }
 }
