@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { MinutesExportDialog } from "@/components/meeting/MinutesExportDialog";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 
 interface MinutesPanelProps {
   sessionId: string | null;
@@ -46,6 +47,7 @@ export function MinutesPanel({ sessionId }: MinutesPanelProps) {
   if (!minutes) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <FeatureStatusBanner status="stub" />
         <p className="text-sm text-muted-foreground">録音終了後に議事録を生成できます</p>
         <button
           type="button"

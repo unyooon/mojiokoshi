@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useMeetingLinkStore } from "@/stores/meetingLinkStore";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 
 interface MeetingLinksPanelProps {
   sessionId?: string | null;
@@ -29,6 +30,7 @@ export function MeetingLinksPanel({ sessionId = null }: MeetingLinksPanelProps) 
   if (links.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <FeatureStatusBanner status="not-implemented" />
         <p className="text-sm text-muted-foreground">関連する過去の会議はありません</p>
         <button
           type="button"

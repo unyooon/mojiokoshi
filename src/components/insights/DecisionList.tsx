@@ -1,4 +1,5 @@
 import { useInsightsStore } from "@/stores/insightsStore";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 
 function formatTime(ms: number): string {
   return new Date(ms).toLocaleTimeString("ja-JP", {
@@ -12,8 +13,11 @@ export function DecisionList() {
 
   if (decisions.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-        決定事項はまだありません
+      <div>
+        <FeatureStatusBanner status="stub" />
+        <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+          決定事項はまだありません
+        </div>
       </div>
     );
   }

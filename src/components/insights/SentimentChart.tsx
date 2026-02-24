@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSentimentStore } from "@/stores/sentimentStore";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 
 const emotionColors: Record<string, string> = {
   positive: "bg-green-500",
@@ -55,6 +56,7 @@ export function SentimentChart({ sessionId = null }: SentimentChartProps) {
   if (sentiments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <FeatureStatusBanner status="stub" />
         <p className="text-sm text-muted-foreground">感情分析データがありません</p>
         <button
           type="button"

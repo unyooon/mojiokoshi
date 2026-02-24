@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useInsightsStore } from "@/stores/insightsStore";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 import type { Topic } from "@/types";
 
 function formatTime(timestamp: number): string {
@@ -42,8 +43,11 @@ export function TopicTimeline() {
 
   if (sorted.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-muted-foreground">トピックは分析完了後に表示されます</p>
+      <div>
+        <FeatureStatusBanner status="stub" />
+        <div className="flex items-center justify-center py-12">
+          <p className="text-sm text-muted-foreground">トピックは分析完了後に表示されます</p>
+        </div>
       </div>
     );
   }

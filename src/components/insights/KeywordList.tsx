@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useInsightsStore } from "@/stores/insightsStore";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 import type { AiKeywordType } from "@/types";
 
 const typeColors: Record<AiKeywordType, string> = {
@@ -15,8 +16,11 @@ export function KeywordList() {
 
   if (keywords.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-        キーワード未検出
+      <div>
+        <FeatureStatusBanner status="stub" />
+        <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+          キーワード未検出
+        </div>
       </div>
     );
   }

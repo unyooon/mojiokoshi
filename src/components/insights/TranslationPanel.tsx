@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useTranslationStore } from "@/stores/translationStore";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 
 interface TranslationPanelProps {
   sessionId?: string | null;
@@ -32,6 +33,7 @@ export function TranslationPanel({ sessionId = null }: TranslationPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
+      <FeatureStatusBanner status="stub" />
       <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border">
         <button
           type="button"

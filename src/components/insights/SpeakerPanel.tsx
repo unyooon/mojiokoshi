@@ -3,6 +3,7 @@ import type { Speaker } from "@/types";
 import { SPEAKER_COLOR_CLASSES } from "@/types";
 import { useSpeakerStore } from "@/stores/speakerStore";
 import { commands } from "@/bindings";
+import { FeatureStatusBanner } from "./FeatureStatusBanner";
 
 function SpeakerRow({
   speaker,
@@ -107,8 +108,11 @@ export function SpeakerPanel() {
 
   if (speakerList.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-        話者はまだ検出されていません
+      <div>
+        <FeatureStatusBanner status="not-implemented" />
+        <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+          話者はまだ検出されていません
+        </div>
       </div>
     );
   }
