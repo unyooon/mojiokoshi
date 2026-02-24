@@ -32,16 +32,15 @@ export function useTauriEvents() {
   const addEntry = useTranscriptStore((s) => s.addEntry);
   const updatePartial = useTranscriptStore((s) => s.updatePartial);
   const unlistenersRef = useRef<UnlistenFn[]>([]);
-  const mountedRef = useRef(true);
 
   useEffect(() => {
-    mountedRef.current = true;
+    // Local variable per effect invocation — immune to StrictMode race
+    let mounted = true;
 
     async function setupListeners() {
       try {
         const { listen } = await import("@tauri-apps/api/event");
-
-        if (!mountedRef.current) return;
+        if (!mounted) return;
 
         const unlistenFinal = await listen<TranscriptEvent>(
           "transcript:final",
@@ -49,6 +48,11 @@ export function useTauriEvents() {
             addEntry(toTranscriptEntry(event.payload));
           },
         );
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- async race with StrictMode cleanup
+        if (!mounted) {
+          unlistenFinal();
+          return;
+        }
 
         const unlistenPartial = await listen<TranscriptEvent>(
           "transcript:partial",
@@ -56,15 +60,14 @@ export function useTauriEvents() {
             updatePartial(toTranscriptEntry(event.payload));
           },
         );
-
-        // mountedRef.current may be false if cleanup ran during await
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (mountedRef.current) {
-          unlistenersRef.current = [unlistenFinal, unlistenPartial];
-        } else {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- async race with StrictMode cleanup
+        if (!mounted) {
           unlistenFinal();
           unlistenPartial();
+          return;
         }
+
+        unlistenersRef.current = [unlistenFinal, unlistenPartial];
       } catch {
         // Tauri API not available (running in browser)
       }
@@ -73,7 +76,7 @@ export function useTauriEvents() {
     void setupListeners();
 
     return () => {
-      mountedRef.current = false;
+      mounted = false;
       for (const unlisten of unlistenersRef.current) {
         unlisten();
       }

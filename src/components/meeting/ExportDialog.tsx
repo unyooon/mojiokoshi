@@ -104,7 +104,7 @@ export function ExportDialog({ open, onClose, sessionId }: ExportDialogProps) {
       onClick={handleBackdropClick}
       className="m-auto backdrop:bg-black/50 rounded-lg p-0 w-full max-w-2xl max-h-[80vh] bg-background text-foreground border border-border shadow-lg"
     >
-      <div className="flex flex-col h-full max-h-[80vh]">
+      <div className="flex flex-col min-h-[50vh] max-h-[80vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold">エクスポート</h3>
           <button
