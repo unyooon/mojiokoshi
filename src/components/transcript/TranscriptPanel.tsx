@@ -4,6 +4,7 @@ import { useTranscriptStore } from "@/stores/transcriptStore";
 import { useInsightsStore } from "@/stores/insightsStore";
 import { useSpeakerStore } from "@/stores/speakerStore";
 import { useSearchStore, type SearchMatch } from "@/stores/searchStore";
+import { useTextInvestigation } from "@/hooks/useTextInvestigation";
 import { SegmentLine } from "./SegmentLine";
 import { SearchBar } from "./SearchBar";
 import { TranscriptContextMenu } from "./TranscriptContextMenu";
@@ -26,6 +27,7 @@ function buildSearchMatches(entries: { id: string; text: string }[], query: stri
 }
 
 export function TranscriptPanel() {
+  const { hasSelection, isInvestigating, investigate } = useTextInvestigation();
   const entries = useTranscriptStore((s) => s.entries);
   const partialEntry = useTranscriptStore((s) => s.partialEntry);
   const autoScroll = useTranscriptStore((s) => s.autoScroll);
@@ -97,10 +99,15 @@ export function TranscriptPanel() {
   }, [handleKeyDown]);
 
   return (
-    <TranscriptContextMenu>
+    <TranscriptContextMenu onInvestigate={investigate} isInvestigating={isInvestigating}>
       <div className="flex flex-col h-full">
-        <div className="px-4 py-2 border-b border-border">
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between">
           <h2 className="text-sm font-semibold">Transcript</h2>
+          {(hasSelection || isInvestigating) && (
+            <span className="text-xs text-muted-foreground">
+              {isInvestigating ? "調査中..." : "⌘+I で調査"}
+            </span>
+          )}
         </div>
         <div className="relative flex-1 overflow-hidden">
           {searchIsOpen && <SearchBar />}

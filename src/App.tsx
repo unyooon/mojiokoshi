@@ -6,11 +6,13 @@ import { ModelAlert } from "./components/ModelAlert";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SettingsDialog } from "./components/settings/SettingsDialog";
 import { ExportDialog } from "./components/meeting/ExportDialog";
+import { PermissionOnboarding } from "./components/onboarding/PermissionOnboarding";
 import { useTauriEvents } from "./hooks/useTauriEvents";
 import { useAiAnalysis } from "./hooks/useAiAnalysis";
 import { useSpeakerEvents } from "./hooks/useSpeakerEvents";
 import { useTheme } from "./hooks/useTheme";
 import { useModelStatus } from "./hooks/useModelStatus";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSettingsStore } from "./stores/settingsStore";
 
 function App() {
@@ -24,6 +26,8 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [permissionChecked, setPermissionChecked] = useState(false);
 
   const theme = useSettingsStore((s) => s.settings.theme);
   const whisperModel = useSettingsStore((s) => s.settings.whisperModel);
@@ -43,6 +47,23 @@ function App() {
     void loadSettings();
   }, [loadSettings]);
 
+  // 初回起動時の権限チェック
+  useEffect(() => {
+    async function checkPermission() {
+      try {
+        const result = await commands.checkScreenCapturePermission();
+        if (result.status === "ok" && !result.data) {
+          setShowOnboarding(true);
+        }
+      } catch {
+        // 権限チェック失敗時はオンボーディングをスキップ
+      } finally {
+        setPermissionChecked(true);
+      }
+    }
+    void checkPermission();
+  }, []);
+
   useEffect(() => {
     commands
       .healthCheck()
@@ -59,20 +80,6 @@ function App() {
       });
   }, []);
 
-  // Cmd+, keyboard shortcut to toggle settings
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === ",") {
-        e.preventDefault();
-        setSettingsOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
   const meetingState: MeetingState = useMemo(() => {
     if (isRecording) return "recording";
     if (isPaused) return "paused";
@@ -83,18 +90,15 @@ function App() {
     setCaptureError(null);
     const perm = await commands.checkScreenCapturePermission();
     if (perm.status === "error") {
-      console.error("Permission check failed:", perm.error);
       setCaptureError("Failed to check screen capture permission");
       return;
     }
     if (!perm.data) {
-      console.error("Screen capture permission denied");
       setCaptureError("Screen capture permission denied");
       return;
     }
     const result = await commands.startAudioCapture();
     if (result.status === "error") {
-      console.error("Failed to start audio capture:", result.error);
       setCaptureError("Failed to start audio capture");
       return;
     }
@@ -111,8 +115,6 @@ function App() {
     if (result.status === "ok") {
       setIsRecording(false);
       setIsPaused(true);
-    } else {
-      console.error("Failed to pause audio capture:", result.error);
     }
   }, []);
 
@@ -121,18 +123,13 @@ function App() {
     if (result.status === "ok") {
       setIsRecording(true);
       setIsPaused(false);
-    } else {
-      console.error("Failed to resume audio capture:", result.error);
     }
   }, []);
 
   // Stop always resets UI state regardless of command result,
   // because the user intent to end the session should be honored.
   const handleStop = useCallback(async () => {
-    const result = await commands.stopAudioCapture();
-    if (result.status === "error") {
-      console.error("Failed to stop audio capture:", result.error);
-    }
+    await commands.stopAudioCapture();
     setIsRecording(false);
     setIsPaused(false);
     setSessionId(null);
@@ -159,6 +156,73 @@ function App() {
     setExportOpen(false);
   }, []);
 
+  const handleOpenSettings = useCallback(() => {
+    setSettingsOpen(prev => !prev);
+  }, []);
+
+  const handleToggleRecording = useCallback(() => {
+    if (isRecording || isPaused) {
+      void handleStop();
+    } else {
+      void handleStart();
+    }
+  }, [isRecording, isPaused, handleStart, handleStop]);
+
+  const handleTogglePause = useCallback(() => {
+    if (isRecording) {
+      void handlePause();
+    } else if (isPaused) {
+      void handleResume();
+    }
+  }, [isRecording, isPaused, handlePause, handleResume]);
+
+  const handleToggleSearch = useCallback(() => {
+    // 検索パネルのトグル（将来的な実装のためのプレースホルダー）
+  }, []);
+
+  const handleAddBookmark = useCallback(() => {
+    // ブックマーク追加（将来的な実装のためのプレースホルダー）
+  }, []);
+
+  const handleFocusTranscript = useCallback(() => {
+    // 文字起こしパネルフォーカス（将来的な実装のためのプレースホルダー）
+  }, []);
+
+  const handleFocusInsights = useCallback(() => {
+    // インサイトパネルフォーカス（将来的な実装のためのプレースホルダー）
+  }, []);
+
+  const handleInvestigate = useCallback(() => {
+    // 調査パネル起動（将来的な実装のためのプレースホルダー）
+  }, []);
+
+  const handleToggleMiniView = useCallback(() => {
+    void commands.toggleMiniView();
+  }, []);
+
+  const handleGenerateSummary = useCallback(() => {
+    if (!sessionId) return;
+    void commands.generateMinutes(sessionId);
+  }, [sessionId]);
+
+  const handleOnboardingComplete = useCallback(() => {
+    setShowOnboarding(false);
+  }, []);
+
+  useKeyboardShortcuts({
+    onToggleRecording: handleToggleRecording,
+    onTogglePause: handleTogglePause,
+    onToggleSearch: handleToggleSearch,
+    onAddBookmark: handleAddBookmark,
+    onExport: handleOpenExport,
+    onOpenSettings: handleOpenSettings,
+    onFocusTranscript: handleFocusTranscript,
+    onFocusInsights: handleFocusInsights,
+    onInvestigate: handleInvestigate,
+    onToggleMiniView: handleToggleMiniView,
+    onGenerateSummary: handleGenerateSummary,
+  });
+
   if (!isConnected) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -172,6 +236,9 @@ function App() {
 
   return (
     <div className="flex h-screen flex-col">
+      {permissionChecked && showOnboarding && (
+        <PermissionOnboarding onComplete={handleOnboardingComplete} />
+      )}
       <MeetingControls
         meetingState={meetingState}
         startTime={recordingStartTime}

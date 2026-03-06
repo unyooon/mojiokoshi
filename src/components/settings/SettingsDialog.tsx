@@ -1,19 +1,25 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { AudioSettingsTab } from "./AudioSettingsTab";
+import { WhisperSettingsTab } from "./WhisperSettingsTab";
+import { ClaudeSettingsTab } from "./ClaudeSettingsTab";
+import { ExportSettingsTab } from "./ExportSettingsTab";
 
 interface SettingsDialogProps {
+  /** ダイアログの表示状態 */
   open: boolean;
+  /** ダイアログを閉じるコールバック */
   onClose: () => void;
 }
 
-type SettingsTab = "general" | "audio" | "ai" | "export";
+type SettingsTab = "general" | "audio" | "whisper" | "claude" | "export";
 
 const TABS: { key: SettingsTab; label: string }[] = [
-  { key: "general", label: "General" },
-  { key: "audio", label: "Audio" },
-  { key: "ai", label: "AI" },
-  { key: "export", label: "Export" },
+  { key: "general", label: "一般" },
+  { key: "audio", label: "音声" },
+  { key: "whisper", label: "Whisper" },
+  { key: "claude", label: "Claude" },
+  { key: "export", label: "エクスポート" },
 ];
 
 const LANGUAGES = [
@@ -24,6 +30,13 @@ const LANGUAGES = [
   { code: "auto", label: "Auto-detect" },
 ];
 
+/**
+ * @description アプリケーション設定ダイアログ。
+ * 一般 / 音声 / Whisper / Claude / エクスポートの5タブで構成される。
+ * @param props.open - ダイアログの表示状態
+ * @param props.onClose - ダイアログを閉じるコールバック
+ * @returns 設定ダイアログ要素
+ */
 export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [tab, setTab] = useState<SettingsTab>("general");
@@ -66,7 +79,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
           </button>
         </div>
 
-        <div className="flex border-b border-border px-4 gap-1">
+        <div className="flex border-b border-border px-4 gap-1 overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -74,7 +87,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
               onClick={() => {
                 setTab(t.key);
               }}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 tab === t.key
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -145,33 +158,11 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
 
           {tab === "audio" && <AudioSettingsTab settings={settings} onUpdate={update} />}
 
-          {tab === "ai" && (
-            <label className="block space-y-1">
-              <span className="text-sm font-medium">
-                Analysis Interval: {settings.analysisIntervalMinutes} min
-              </span>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                step={1}
-                value={settings.analysisIntervalMinutes}
-                onChange={(e) => {
-                  update("analysisIntervalMinutes", Number(e.target.value));
-                }}
-                className="w-full"
-              />
-            </label>
-          )}
+          {tab === "whisper" && <WhisperSettingsTab />}
 
-          {tab === "export" && (
-            <div className="text-sm text-muted-foreground">
-              <p>Default export format: Markdown</p>
-              <p className="mt-2">
-                Additional export options will be available in a future update.
-              </p>
-            </div>
-          )}
+          {tab === "claude" && <ClaudeSettingsTab />}
+
+          {tab === "export" && <ExportSettingsTab />}
         </div>
       </div>
     </dialog>
