@@ -1,3 +1,4 @@
+pub mod bookmark_store;
 pub mod keyword_dictionary_store;
 pub mod keyword_store;
 pub mod meeting_link_store;

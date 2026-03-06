@@ -4,6 +4,7 @@ use tauri::State;
 
 use crate::error::AppError;
 use crate::export::markdown::{self, ExportOptions, ExportResult};
+use crate::export::pdf;
 use crate::storage::sqlite::SqliteStorage;
 
 /// Generate a markdown export for a session.
@@ -14,6 +15,40 @@ pub fn export_markdown(
     options: ExportOptions,
 ) -> Result<ExportResult, AppError> {
     markdown::generate_markdown(&storage, &options)
+}
+
+/// Generate a PDF export for a session.
+///
+/// Fetches session data via `export_markdown` (full transcript with all sections),
+/// then converts the generated Markdown to a PDF document.
+///
+/// # Parameters
+///
+/// * `storage` - Injected SQLite storage state.
+/// * `session_id` - The session to export.
+///
+/// # Returns
+///
+/// Raw PDF bytes ready to be saved or transferred.
+///
+/// # Errors
+///
+/// Returns `AppError` when session data cannot be fetched or PDF generation fails.
+#[tauri::command]
+#[specta::specta]
+pub fn export_pdf(
+    storage: State<'_, Arc<SqliteStorage>>,
+    session_id: String,
+) -> Result<Vec<u8>, AppError> {
+    let options = ExportOptions {
+        session_id: session_id.clone(),
+        include_summary: true,
+        include_actions: true,
+        include_keywords: true,
+        include_transcript: true,
+    };
+    let result = markdown::generate_markdown(&storage, &options)?;
+    pdf::generate_pdf(&result.filename, &result.content)
 }
 
 /// Save exported content to the user's Documents directory.

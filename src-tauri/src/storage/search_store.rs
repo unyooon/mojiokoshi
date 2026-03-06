@@ -42,6 +42,35 @@ impl SqliteStorage {
         Ok(())
     }
 
+    /// Rebuild the FTS5 index for a session by deleting and re-inserting all segment rows.
+    ///
+    /// This is useful when segments are bulk-imported or the index becomes stale.
+    ///
+    /// # Parameters
+    ///
+    /// * `session_id` - The session whose FTS index entries should be rebuilt.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Storage` when any SQL statement fails.
+    pub fn rebuild_fts_index(&self, session_id: &str) -> Result<(), AppError> {
+        let conn = self.lock_conn()?;
+        // Remove existing FTS entries for this session
+        conn.execute(
+            "DELETE FROM segments_fts WHERE session_id = ?1",
+            rusqlite::params![session_id],
+        )
+        .map_err(|e| AppError::Storage(e.to_string()))?;
+        // Re-insert from the canonical segments table
+        conn.execute(
+            "INSERT INTO segments_fts(rowid, text, session_id) \
+             SELECT id, text, session_id FROM segments WHERE session_id = ?1",
+            rusqlite::params![session_id],
+        )
+        .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(())
+    }
+
     /// Full-text search across transcript segments.
     ///
     /// When `session_id` is `Some`, results are scoped to that session.

@@ -7,6 +7,25 @@ use crate::error::AppError;
 use crate::storage::search_store::SearchResult;
 use crate::storage::sqlite::SqliteStorage;
 
+/// Rebuild the FTS5 search index for a specific session.
+///
+/// # Parameters
+///
+/// * `storage` - Injected SQLite storage state.
+/// * `session_id` - The session whose FTS index should be rebuilt.
+///
+/// # Errors
+///
+/// Returns `AppError::Storage` when the index rebuild fails.
+#[tauri::command]
+#[specta::specta]
+pub fn rebuild_search_index(
+    storage: State<'_, Arc<SqliteStorage>>,
+    session_id: String,
+) -> Result<(), AppError> {
+    storage.rebuild_fts_index(&session_id)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn search_transcripts(

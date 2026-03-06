@@ -1,4 +1,5 @@
 pub mod ai_commands;
+pub mod bookmark_commands;
 pub mod audio;
 pub mod claude;
 pub mod commands;
@@ -40,13 +41,16 @@ use diarization_commands::{
     DiarizationState,
 };
 use error::AppError;
-use export_commands::{export_markdown, save_export_file};
+use bookmark_commands::{add_bookmark, get_bookmarks, remove_bookmark};
+use export_commands::{export_markdown, export_pdf, save_export_file};
 use keyword_dictionary_commands::{
     add_dictionary_keyword, delete_dictionary_keyword, get_all_dictionary_keywords,
     update_dictionary_keyword,
 };
 use meeting_link_commands::{find_related_meetings, get_meeting_links};
-use search_commands::{get_all_settings, get_setting, search_transcripts, set_setting};
+use search_commands::{
+    get_all_settings, get_setting, rebuild_search_index, search_transcripts, set_setting,
+};
 use sentiment_commands::{analyze_sentiment, get_sentiments};
 use translation_commands::{get_translations, translate_segments};
 
@@ -98,6 +102,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             check_sidecar_status,
             get_whisper_model_status,
             download_whisper_model,
+            add_bookmark,
+            remove_bookmark,
+            get_bookmarks,
+            export_pdf,
+            rebuild_search_index,
         ]);
 
     #[cfg(debug_assertions)]

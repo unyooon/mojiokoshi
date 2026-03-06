@@ -31,6 +31,21 @@ pub struct Segment {
     pub is_partial: bool,
 }
 
+/// A user-created bookmark that marks a specific point in a session's transcript.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct Bookmark {
+    /// Unique identifier for the bookmark (UUID v4).
+    pub id: String,
+    /// The session this bookmark belongs to.
+    pub session_id: String,
+    /// Optional reference to a specific transcript segment.
+    pub segment_id: Option<String>,
+    /// Optional freeform note attached to the bookmark.
+    pub note: Option<String>,
+    /// ISO 8601 timestamp of when the bookmark was created.
+    pub created_at: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
