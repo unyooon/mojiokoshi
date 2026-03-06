@@ -14,20 +14,38 @@ type UnlistenFn = () => void;
 interface TauriEvent<T> {
   payload: T;
 }
+
+/**
+ * @description Tauriコマンドを呼び出すヘルパー。エラー時はログ出力して再throwする。
+ * @param cmd - Tauriコマンド名
+ * @param args - コマンド引数
+ * @throws Tauriコマンドのエラー
+ */
 async function invokeCommand(cmd: string, args?: Record<string, unknown>): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke(cmd, args);
+}
+
+/**
+ * @description Tauriコマンドを呼び出すヘルパー（エラーを無視）。ブラウザdevモード対応。
+ * @param cmd - Tauriコマンド名
+ * @param args - コマンド引数
+ */
+async function invokeCommandSilent(cmd: string, args?: Record<string, unknown>): Promise<void> {
   try {
-    const { invoke } = await import("@tauri-apps/api/core");
-    await invoke(cmd, args);
+    await invokeCommand(cmd, args);
   } catch {
     // Tauri API not available (browser dev mode)
   }
 }
 
 export async function triggerInvestigation(query: string, context: string): Promise<void> {
-  await invokeCommand("investigate", { query, context });
+  await invokeCommandSilent("investigate", { query, context });
 }
 
+/** バッチ分析間隔: 3分 */
 const AI_BATCH_INTERVAL_MS = 180_000;
+/** トランスクリプトフォーマット間隔: 30秒 */
 const FORMAT_INTERVAL_MS = 30_000;
 
 export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
@@ -46,18 +64,25 @@ export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
   // Start/stop AI analysis when recording state changes
   useEffect(() => {
     if (!sessionId || !isRecording) return;
-    void invokeCommand("start_ai_analysis", { sessionId });
+    void invokeCommandSilent("start_ai_analysis", { sessionId });
     return () => {
-      void invokeCommand("stop_ai_analysis", { sessionId });
+      void invokeCommandSilent("stop_ai_analysis", { sessionId });
     };
   }, [sessionId, isRecording]);
 
   // 3-minute batch timer
   useEffect(() => {
     if (!sessionId || !isRecording) return;
-    const interval = setInterval(() => {
+    const runBatch = async () => {
       setAnalyzing(true);
-      void invokeCommand("run_ai_batch", { sessionId });
+      try {
+        await invokeCommand("run_ai_batch", { sessionId });
+      } catch {
+        setAnalyzing(false);
+      }
+    };
+    const interval = setInterval(() => {
+      void runBatch();
     }, AI_BATCH_INTERVAL_MS);
     return () => {
       clearInterval(interval);
@@ -68,7 +93,7 @@ export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
   useEffect(() => {
     if (!sessionId || !isRecording) return;
     const interval = setInterval(() => {
-      void invokeCommand("format_transcript", { sessionId });
+      void invokeCommandSilent("format_transcript", { sessionId });
     }, FORMAT_INTERVAL_MS);
     return () => {
       clearInterval(interval);
@@ -124,6 +149,9 @@ export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
               done();
             },
           ),
+          await listen("ai:batch-done", () => {
+            done();
+          }),
         ];
 
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

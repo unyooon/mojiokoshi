@@ -74,8 +74,11 @@ pub fn run_ai_batch(app: AppHandle, ai: State<'_, AiState>) -> Result<(), AppErr
         .ok_or_else(|| AppError::AiAnalysis("No active analysis session".into()))?;
 
     let result = processor.process_batch()?;
-    if let Some(batch) = result {
-        emit_batch_results(&app, &batch)?;
+    match result {
+        Some(batch) => emit_batch_results(&app, &batch)?,
+        None => {
+            let _ = app.emit("ai:batch-done", ());
+        }
     }
     Ok(())
 }

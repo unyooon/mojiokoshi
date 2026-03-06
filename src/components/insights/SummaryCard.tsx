@@ -24,8 +24,9 @@ export function SummaryCard() {
 
   if (!summary) {
     return (
-      <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-        AI分析待ち...
+      <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground text-sm">
+        <p>録音中のテキストを3分ごとに自動分析します</p>
+        <p className="text-xs">サマリー・キーワード・アクションアイテム・決定事項が表示されます</p>
       </div>
     );
   }

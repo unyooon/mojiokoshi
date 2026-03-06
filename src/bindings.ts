@@ -260,108 +260,6 @@ async saveExportFile(content: string, filename: string) : Promise<Result<string,
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Translate all segments for a session into the specified target language.
- * 
- * For each segment the function builds a prompt, sends it through the AI
- * bridge, persists the result, and returns the full list of translations.
- * When the bridge runs in stub mode the translated text is a simple
- * `[Translation] <original>` prefix so that the feature can be exercised
- * without an API key.
- */
-async translateSegments(sessionId: string, targetLang: string) : Promise<Result<TranslationEntry[], AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("translate_segments", { sessionId, targetLang }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Retrieve previously stored translations for a session.
- */
-async getTranslations(sessionId: string, targetLang: string) : Promise<Result<TranslationEntry[], AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_translations", { sessionId, targetLang }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async findRelatedMeetings(sessionId: string) : Promise<Result<MeetingLink[], AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("find_related_meetings", { sessionId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async getMeetingLinks(sessionId: string) : Promise<Result<MeetingLink[], AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_meeting_links", { sessionId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Analyse sentiment for every segment in a session.
- * 
- * In stub mode (no real AI backend), generates deterministic mock
- * sentiments cycling through emotion labels. Results are persisted
- * and returned.
- */
-async analyzeSentiment(sessionId: string) : Promise<Result<SentimentEntry[], AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("analyze_sentiment", { sessionId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Retrieve previously computed sentiments for a session.
- */
-async getSentiments(sessionId: string) : Promise<Result<SentimentEntry[], AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_sentiments", { sessionId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async addDictionaryKeyword(term: string, reading: string | null, definition: string | null, category: string) : Promise<Result<number, AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("add_dictionary_keyword", { term, reading, definition, category }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async updateDictionaryKeyword(id: number, term: string, reading: string | null, definition: string | null, category: string) : Promise<Result<null, AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("update_dictionary_keyword", { id, term, reading, definition, category }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async deleteDictionaryKeyword(id: number) : Promise<Result<null, AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("delete_dictionary_keyword", { id }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async getAllDictionaryKeywords() : Promise<Result<DictionaryKeyword[], AppError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_all_dictionary_keywords") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async checkSidecarStatus() : Promise<Result<SidecarStatus, AppError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("check_sidecar_status") };
@@ -549,18 +447,6 @@ export type CaptureState = "Idle" | "Capturing" | "Paused"
  */
 export type DiarizedSegment = { speaker: string; start: number; end: number }
 /**
- * A user-defined keyword with optional reading and definition.
- */
-export type DictionaryKeyword = { id: number; term: string; 
-/**
- * Japanese reading (furigana).
- */
-reading: string | null; definition: string | null; 
-/**
- * One of "tech_term", "proper_noun", "acronym", or "custom".
- */
-category: string; created_at: string; updated_at: string }
-/**
  * Options controlling which sections appear in the exported document.
  */
 export type ExportOptions = { session_id: string; include_summary: boolean; include_actions: boolean; include_keywords: boolean; include_transcript: boolean }
@@ -584,7 +470,6 @@ last_segment_end_ms: number }
  * Result of an on-demand investigation query.
  */
 export type InvestigationResult = { id: string; query: string; summary: string; details: string; sources: Source[]; created_at: number }
-export type MeetingLink = { id: number; session_id: string; related_session_id: string; related_title: string; similarity_score: number; shared_keywords: string[]; created_at: string }
 /**
  * A suggested question for the meeting participant.
  */
@@ -602,27 +487,6 @@ text: string;
  */
 reason: string }
 export type SearchResult = { segment_id: number; session_id: string; text: string; highlighted: string; start_time: number; end_time: number; speaker: string | null }
-/**
- * A single sentiment/tone analysis result for a transcript segment.
- */
-export type SentimentEntry = { id: number; session_id: string; segment_id: number; 
-/**
- * Sentiment score from -1.0 (very negative) to 1.0 (very positive).
- */
-score: number; 
-/**
- * Detected emotion label: "neutral", "positive", "negative",
- * "excited", "concerned", or "confused".
- */
-emotion: string; 
-/**
- * Confidence of the analysis, 0.0 to 1.0.
- */
-confidence: number; 
-/**
- * Segment start_time, used for timeline plotting.
- */
-timestamp: number; created_at: string }
 export type SidecarStatus = { ai_available: boolean; diarization_available: boolean }
 /**
  * A source reference from web search.
@@ -632,10 +496,6 @@ export type Source = { title: string; url: string }
  * Metadata about a recognized speaker.
  */
 export type SpeakerInfo = { id: string; label: string; color: string; is_self: boolean }
-/**
- * A persisted translation of a transcript segment.
- */
-export type TranslationEntry = { id: number; session_id: string; segment_id: number; source_lang: string; target_lang: string; source_text: string; translated_text: string; created_at: string }
 export type WhisperModelStatus = "NotDownloaded" | { Downloading: { progress: number } } | { Ready: { path: string } }
 
 /** tauri-specta globals **/
