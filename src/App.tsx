@@ -157,7 +157,7 @@ function App() {
   }, []);
 
   const handleOpenSettings = useCallback(() => {
-    setSettingsOpen(prev => !prev);
+    setSettingsOpen((prev) => !prev);
   }, []);
 
   const handleToggleRecording = useCallback(() => {

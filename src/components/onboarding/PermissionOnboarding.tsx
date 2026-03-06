@@ -101,7 +101,8 @@ export function PermissionOnboarding({ onComplete }: PermissionOnboardingProps) 
               <div className="text-4xl">⏳</div>
               <h2 className="text-xl font-semibold">権限を確認してください</h2>
               <p className="text-sm text-muted-foreground">
-                システム設定で MojiOkoshi に画面収録の権限を付与した後、「次へ」をクリックしてください。
+                システム設定で MojiOkoshi
+                に画面収録の権限を付与した後、「次へ」をクリックしてください。
               </p>
             </div>
             <div className="flex flex-col gap-2">

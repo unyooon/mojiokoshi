@@ -118,6 +118,36 @@ async generateMinutes(sessionId: string) : Promise<Result<string, AppError>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Format the transcript segments using the AI sidecar, incrementally from the last formatted position.
+ * 
+ * # Errors
+ * 
+ * Returns `AppError::AiAnalysis` if the bridge request fails or no new segments are available.
+ */
+async formatTranscript(sessionId: string) : Promise<Result<FormattedTranscript, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("format_transcript", { sessionId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Suggest follow-up questions based on the current transcript and summary.
+ * 
+ * # Errors
+ * 
+ * Returns `AppError::AiAnalysis` if the bridge request fails or the response is malformed.
+ */
+async suggestQuestions(sessionId: string) : Promise<Result<QuestionSuggestion[], AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("suggest_questions", { sessionId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async startDiarization() : Promise<Result<null, AppError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("start_diarization") };
@@ -355,6 +385,123 @@ async downloadWhisperModel(model: string) : Promise<Result<string, AppError>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Add a bookmark for a session, optionally linked to a specific segment.
+ * 
+ * # Parameters
+ * 
+ * * `storage` - Injected SQLite storage state.
+ * * `session_id` - The session to attach the bookmark to.
+ * * `segment_id` - Optional segment ID to link the bookmark to.
+ * * `note` - Optional freeform note.
+ * 
+ * # Returns
+ * 
+ * The UUID of the newly created bookmark.
+ * 
+ * # Errors
+ * 
+ * Returns `AppError::Storage` when the insert fails.
+ */
+async addBookmark(sessionId: string, segmentId: string | null, note: string | null) : Promise<Result<string, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_bookmark", { sessionId, segmentId, note }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Remove a bookmark by its ID.
+ * 
+ * # Parameters
+ * 
+ * * `storage` - Injected SQLite storage state.
+ * * `id` - UUID of the bookmark to remove.
+ * 
+ * # Errors
+ * 
+ * Returns `AppError::Storage` when the bookmark is not found or the delete fails.
+ */
+async removeBookmark(id: string) : Promise<Result<null, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("remove_bookmark", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Retrieve all bookmarks for a session.
+ * 
+ * # Parameters
+ * 
+ * * `storage` - Injected SQLite storage state.
+ * * `session_id` - The session whose bookmarks should be retrieved.
+ * 
+ * # Returns
+ * 
+ * A list of bookmarks ordered by creation time ascending.
+ * 
+ * # Errors
+ * 
+ * Returns `AppError::Storage` when the query fails.
+ */
+async getBookmarks(sessionId: string) : Promise<Result<Bookmark[], AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_bookmarks", { sessionId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Generate a PDF export for a session.
+ * 
+ * Fetches session data via `export_markdown` (full transcript with all sections),
+ * then converts the generated Markdown to a PDF document.
+ * 
+ * # Parameters
+ * 
+ * * `storage` - Injected SQLite storage state.
+ * * `session_id` - The session to export.
+ * 
+ * # Returns
+ * 
+ * Raw PDF bytes ready to be saved or transferred.
+ * 
+ * # Errors
+ * 
+ * Returns `AppError` when session data cannot be fetched or PDF generation fails.
+ */
+async exportPdf(sessionId: string) : Promise<Result<number[], AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_pdf", { sessionId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Rebuild the FTS5 search index for a specific session.
+ * 
+ * # Parameters
+ * 
+ * * `storage` - Injected SQLite storage state.
+ * * `session_id` - The session whose FTS index should be rebuilt.
+ * 
+ * # Errors
+ * 
+ * Returns `AppError::Storage` when the index rebuild fails.
+ */
+async rebuildSearchIndex(sessionId: string) : Promise<Result<null, AppError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("rebuild_search_index", { sessionId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -372,6 +519,30 @@ async downloadWhisperModel(model: string) : Promise<Result<string, AppError>> {
  * Application-wide error type.
  */
 export type AppError = { AudioCapture: string } | { SpeechRecognition: string } | { AiAnalysis: string } | { Storage: string } | { Config: string } | { Permission: string } | { Internal: string }
+/**
+ * A user-created bookmark that marks a specific point in a session's transcript.
+ */
+export type Bookmark = { 
+/**
+ * Unique identifier for the bookmark (UUID v4).
+ */
+id: string; 
+/**
+ * The session this bookmark belongs to.
+ */
+session_id: string; 
+/**
+ * Optional reference to a specific transcript segment.
+ */
+segment_id: string | null; 
+/**
+ * Optional freeform note attached to the bookmark.
+ */
+note: string | null; 
+/**
+ * ISO 8601 timestamp of when the bookmark was created.
+ */
+created_at: string }
 export type CaptureState = "Idle" | "Capturing" | "Paused"
 /**
  * A single speaker-attributed time segment from diarization.
@@ -398,10 +569,38 @@ export type ExportOptions = { session_id: string; include_summary: boolean; incl
  */
 export type ExportResult = { content: string; filename: string }
 /**
+ * A formatted transcript with speaker labels and timestamps applied.
+ */
+export type FormattedTranscript = { 
+/**
+ * The formatted transcript text with speaker labels.
+ */
+formatted_text: string; 
+/**
+ * End timestamp in milliseconds of the last processed segment.
+ */
+last_segment_end_ms: number }
+/**
  * Result of an on-demand investigation query.
  */
 export type InvestigationResult = { id: string; query: string; summary: string; details: string; sources: Source[]; created_at: number }
 export type MeetingLink = { id: number; session_id: string; related_session_id: string; related_title: string; similarity_score: number; shared_keywords: string[]; created_at: string }
+/**
+ * A suggested question for the meeting participant.
+ */
+export type QuestionSuggestion = { 
+/**
+ * Unique identifier for the suggestion.
+ */
+id: string; 
+/**
+ * The suggested question text.
+ */
+text: string; 
+/**
+ * Why this question is suggested based on the conversation context.
+ */
+reason: string }
 export type SearchResult = { segment_id: number; session_id: string; text: string; highlighted: string; start_time: number; end_time: number; speaker: string | null }
 /**
  * A single sentiment/tone analysis result for a transcript segment.

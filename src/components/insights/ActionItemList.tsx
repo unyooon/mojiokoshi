@@ -1,5 +1,4 @@
 import { useInsightsStore } from "@/stores/insightsStore";
-import { FeatureStatusBanner } from "./FeatureStatusBanner";
 import type { AiPriority } from "@/types";
 
 const priorityColors: Record<AiPriority, string> = {
@@ -14,11 +13,8 @@ export function ActionItemList() {
 
   if (actionItems.length === 0) {
     return (
-      <div>
-        <FeatureStatusBanner status="stub" />
-        <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-          アクションアイテムはまだありません
-        </div>
+      <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+        アクションアイテムはまだありません
       </div>
     );
   }

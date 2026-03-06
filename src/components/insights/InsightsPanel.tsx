@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useInsightsStore } from "@/stores/insightsStore";
-import type { FeatureStatus } from "./FeatureStatusBanner";
 import { SummaryCard } from "./SummaryCard";
 import { KeywordList } from "./KeywordList";
 import { ActionItemList } from "./ActionItemList";
@@ -9,10 +8,6 @@ import { SpeakerPanel } from "./SpeakerPanel";
 import { InvestigationPanel } from "./InvestigationPanel";
 import { MinutesPanel } from "./MinutesPanel";
 import { TopicTimeline } from "./TopicTimeline";
-import { TranslationPanel } from "./TranslationPanel";
-import { SentimentChart } from "./SentimentChart";
-import { MeetingLinksPanel } from "./MeetingLinksPanel";
-import { KeywordDictionaryPanel } from "./KeywordDictionaryPanel";
 
 type Section =
   | "summary"
@@ -22,32 +17,18 @@ type Section =
   | "speakers"
   | "investigation"
   | "timeline"
-  | "minutes"
-  | "translation"
-  | "sentiment"
-  | "links"
-  | "dictionary";
+  | "minutes";
 
-const sections: { key: Section; label: string; status: FeatureStatus }[] = [
-  { key: "summary", label: "サマリー", status: "stub" },
-  { key: "keywords", label: "キーワード", status: "stub" },
-  { key: "actions", label: "アクション", status: "stub" },
-  { key: "decisions", label: "決定事項", status: "stub" },
-  { key: "speakers", label: "話者", status: "not-implemented" },
-  { key: "investigation", label: "調査", status: "stub" },
-  { key: "timeline", label: "タイムライン", status: "stub" },
-  { key: "minutes", label: "議事録", status: "stub" },
-  { key: "translation", label: "翻訳", status: "stub" },
-  { key: "sentiment", label: "感情", status: "stub" },
-  { key: "links", label: "関連会議", status: "not-implemented" },
-  { key: "dictionary", label: "辞書", status: "ready" },
+const sections: { key: Section; label: string }[] = [
+  { key: "summary", label: "サマリー" },
+  { key: "keywords", label: "キーワード" },
+  { key: "actions", label: "アクション" },
+  { key: "decisions", label: "決定事項" },
+  { key: "speakers", label: "話者" },
+  { key: "investigation", label: "調査" },
+  { key: "timeline", label: "タイムライン" },
+  { key: "minutes", label: "議事録" },
 ];
-
-const statusDot: Record<FeatureStatus, string> = {
-  ready: "",
-  stub: "text-yellow-500",
-  "not-implemented": "text-red-500",
-};
 
 const sectionComponents: Record<string, React.ComponentType> = {
   summary: SummaryCard,
@@ -57,18 +38,14 @@ const sectionComponents: Record<string, React.ComponentType> = {
   speakers: SpeakerPanel,
   investigation: InvestigationPanel,
   timeline: TopicTimeline,
-  dictionary: KeywordDictionaryPanel,
 };
 
-const sessionIdSections = new Set(["minutes", "translation", "sentiment", "links"]);
+const sessionIdSections = new Set(["minutes"]);
 
 type SessionIdComponent = React.ComponentType<{ sessionId: string | null }>;
 
 const sessionIdComponents: Record<string, SessionIdComponent> = {
   minutes: MinutesPanel,
-  translation: TranslationPanel,
-  sentiment: SentimentChart,
-  links: MeetingLinksPanel,
 };
 
 interface InsightsPanelProps {
@@ -95,16 +72,13 @@ export function InsightsPanel({ sessionId = null }: InsightsPanelProps) {
             onClick={() => {
               setActive(s.key);
             }}
-            className={`px-2 py-1.5 text-xs font-medium transition-colors flex items-center gap-1 ${
+            className={`px-2 py-1.5 text-xs font-medium transition-colors ${
               active === s.key
                 ? "text-primary border-b-2 border-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {s.label}
-            {s.status !== "ready" && (
-              <span className={`inline-block w-1.5 h-1.5 rounded-full bg-current ${statusDot[s.status]}`} />
-            )}
           </button>
         ))}
       </div>

@@ -26,7 +26,7 @@ interface TranscriptContextMenuProps {
 export function TranscriptContextMenu({
   children,
   onInvestigate,
-  isInvestigating
+  isInvestigating,
 }: TranscriptContextMenuProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 

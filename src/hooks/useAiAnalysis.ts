@@ -1,6 +1,14 @@
 import { useEffect, useRef } from "react";
 import { useInsightsStore } from "@/stores/insightsStore";
-import type { AiKeyword, AiSummary, AiActionItem, Decision, InvestigationResult } from "@/types";
+import type {
+  AiKeyword,
+  AiSummary,
+  AiActionItem,
+  AiTopic,
+  Decision,
+  FormattedTranscript,
+  InvestigationResult,
+} from "@/types";
 
 type UnlistenFn = () => void;
 interface TauriEvent<T> {
@@ -20,6 +28,7 @@ export async function triggerInvestigation(query: string, context: string): Prom
 }
 
 const AI_BATCH_INTERVAL_MS = 180_000;
+const FORMAT_INTERVAL_MS = 30_000;
 
 export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
   const {
@@ -28,6 +37,8 @@ export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
     addActionItems,
     addDecisions,
     addInvestigation,
+    addAiTopics,
+    setFormattedTranscript,
     setAnalyzing,
     clearAll,
   } = useInsightsStore();
@@ -52,6 +63,17 @@ export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
       clearInterval(interval);
     };
   }, [sessionId, isRecording, setAnalyzing]);
+
+  // 30-second format timer
+  useEffect(() => {
+    if (!sessionId || !isRecording) return;
+    const interval = setInterval(() => {
+      void invokeCommand("format_transcript", { sessionId });
+    }, FORMAT_INTERVAL_MS);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [sessionId, isRecording]);
 
   const mountedRef = useRef(true);
   const unlistenersRef = useRef<UnlistenFn[]>([]);
@@ -91,6 +113,17 @@ export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
               done();
             },
           ),
+          await listen<AiTopic[]>("ai:topics", (e: TauriEvent<AiTopic[]>) => {
+            addAiTopics(e.payload);
+            done();
+          }),
+          await listen<FormattedTranscript>(
+            "ai:formatted-transcript",
+            (e: TauriEvent<FormattedTranscript>) => {
+              setFormattedTranscript(e.payload.formatted_text);
+              done();
+            },
+          ),
         ];
 
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -110,7 +143,16 @@ export function useAiAnalysis(sessionId: string | null, isRecording: boolean) {
       for (const fn of unlistenersRef.current) fn();
       unlistenersRef.current = [];
     };
-  }, [addKeywords, updateSummary, addActionItems, addDecisions, addInvestigation, setAnalyzing]);
+  }, [
+    addKeywords,
+    updateSummary,
+    addActionItems,
+    addDecisions,
+    addInvestigation,
+    addAiTopics,
+    setFormattedTranscript,
+    setAnalyzing,
+  ]);
 
   // Clear insights when session changes
   useEffect(() => {

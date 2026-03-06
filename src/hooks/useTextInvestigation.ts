@@ -29,7 +29,7 @@ function getSelectionData(): SelectionData | null {
   const idx = parseInt(idxAttr, 10);
   const context = entries
     .slice(Math.max(0, idx - 5), Math.min(entries.length, idx + 6))
-    .map(e => `[${e.speakerName}] ${e.text}`)
+    .map((e) => `[${e.speakerName}] ${e.text}`)
     .join("\n");
 
   return { query, context };
@@ -58,8 +58,8 @@ interface UseTextInvestigationReturn {
 export function useTextInvestigation(): UseTextInvestigationReturn {
   const [isInvestigating, setIsInvestigating] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
-  const addInvestigation = useInsightsStore(s => s.addInvestigation);
-  const setAnalyzing = useInsightsStore(s => s.setAnalyzing);
+  const addInvestigation = useInsightsStore((s) => s.addInvestigation);
+  const setAnalyzing = useInsightsStore((s) => s.setAnalyzing);
 
   // selectionchange イベントで hasSelection を更新
   useEffect(() => {

@@ -84,7 +84,10 @@ fn parse_markdown(title: &str, markdown_content: &str) -> Vec<PdfLine> {
         }
 
         // Unordered list items
-        if let Some(rest) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
+        if let Some(rest) = trimmed
+            .strip_prefix("- ")
+            .or_else(|| trimmed.strip_prefix("* "))
+        {
             let text = format!("• {}", strip_bold(rest));
             lines.push(PdfLine::Body(text));
             continue;
@@ -142,12 +145,7 @@ pub fn generate_pdf(title: &str, markdown_content: &str) -> Result<Vec<u8>, AppE
             PdfLine::Body(b) => (b.as_str(), BODY_FONT_SIZE),
             PdfLine::Blank => {
                 y_mm -= BODY_FONT_SIZE * LINE_HEIGHT_FACTOR * 0.5;
-                check_new_page(
-                    &doc,
-                    &mut current_layer,
-                    &mut y_mm,
-                    &mut page_count,
-                )?;
+                check_new_page(&doc, &mut current_layer, &mut y_mm, &mut page_count)?;
                 continue;
             }
         };
@@ -230,9 +228,7 @@ mod tests {
     #[test]
     fn generate_pdf_multipage_content() {
         // Generate enough lines to force a page break
-        let body: String = (0..200)
-            .map(|i| format!("Line number {i}\n"))
-            .collect();
+        let body: String = (0..200).map(|i| format!("Line number {i}\n")).collect();
         let bytes = generate_pdf("Long Doc", &body).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }

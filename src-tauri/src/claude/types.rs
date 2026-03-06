@@ -77,6 +77,41 @@ pub struct Decision {
     pub detected_at: f64,
 }
 
+/// A topic segment identified in the meeting.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct Topic {
+    /// Unique identifier for the topic.
+    pub id: String,
+    /// Short title summarizing the topic.
+    pub title: String,
+    /// Brief description of what was discussed.
+    pub summary: String,
+    /// Start timestamp in milliseconds from meeting start.
+    pub start_ms: f64,
+    /// End timestamp in milliseconds from meeting start.
+    pub end_ms: f64,
+}
+
+/// A formatted transcript with speaker labels and timestamps applied.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FormattedTranscript {
+    /// The formatted transcript text with speaker labels.
+    pub formatted_text: String,
+    /// End timestamp in milliseconds of the last processed segment.
+    pub last_segment_end_ms: f64,
+}
+
+/// A suggested question for the meeting participant.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct QuestionSuggestion {
+    /// Unique identifier for the suggestion.
+    pub id: String,
+    /// The suggested question text.
+    pub text: String,
+    /// Why this question is suggested based on the conversation context.
+    pub reason: String,
+}
+
 /// A source reference from web search.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Source {
@@ -124,10 +159,38 @@ pub struct AnalysisBatchPayload {
 /// Result returned from the `analyze_batch` command.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisBatchResult {
+    /// Extracted keywords and technical terms.
     pub keywords: Vec<Keyword>,
+    /// Rolling summary of the meeting.
     pub summary: AiSummary,
+    /// Action items detected in the meeting.
     pub action_items: Vec<ActionItem>,
+    /// Decisions recorded during the meeting.
     pub decisions: Vec<Decision>,
+    /// Topic segments identified in the meeting.
+    pub topics: Vec<Topic>,
+}
+
+/// Payload for the `format_transcript` command.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FormatTranscriptPayload {
+    /// Transcript segments to format.
+    pub segments: Vec<TranscriptSegmentForAi>,
+    /// Previously formatted transcript text to maintain continuity.
+    pub previous_formatted: Option<String>,
+}
+
+/// A single transcript segment sent to the AI for formatting.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscriptSegmentForAi {
+    /// Speaker name if identified, or None.
+    pub speaker: Option<String>,
+    /// Transcribed text content.
+    pub text: String,
+    /// Segment start time in seconds.
+    pub start_time: f64,
+    /// Segment end time in seconds.
+    pub end_time: f64,
 }
 
 /// Payload for the `investigate` command.
@@ -227,6 +290,13 @@ mod tests {
                 participants: vec!["Alice".to_string(), "Bob".to_string()],
                 detected_at: 4000.0,
             }],
+            topics: vec![Topic {
+                id: "t-1".to_string(),
+                title: "Rust Discussion".to_string(),
+                summary: "The team discussed Rust for backend".to_string(),
+                start_ms: 0.0,
+                end_ms: 5000.0,
+            }],
         };
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: AnalysisBatchResult = serde_json::from_str(&json).unwrap();
@@ -234,6 +304,8 @@ mod tests {
         assert_eq!(deserialized.keywords[0].term, "Rust");
         assert_eq!(deserialized.action_items.len(), 1);
         assert_eq!(deserialized.decisions.len(), 1);
+        assert_eq!(deserialized.topics.len(), 1);
+        assert_eq!(deserialized.topics[0].title, "Rust Discussion");
     }
 
     #[test]

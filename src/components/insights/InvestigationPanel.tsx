@@ -1,5 +1,4 @@
 import { useInsightsStore } from "@/stores/insightsStore";
-import { FeatureStatusBanner } from "./FeatureStatusBanner";
 import type { InvestigationResult, Source } from "@/types";
 
 function formatTime(ms: number): string {
@@ -66,11 +65,8 @@ export function InvestigationPanel() {
 
   if (investigations.length === 0) {
     return (
-      <div>
-        <FeatureStatusBanner status="stub" />
-        <div className="flex items-center justify-center py-12 text-muted-foreground text-sm px-4 text-center">
-          テキストを選択して Cmd+I で調査を開始
-        </div>
+      <div className="flex items-center justify-center py-12 text-muted-foreground text-sm px-4 text-center">
+        テキストを選択して Cmd+I で調査を開始
       </div>
     );
   }

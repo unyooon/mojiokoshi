@@ -74,17 +74,12 @@ fn run_pipeline(
                 // Run VAD on full 512-sample chunks (no zero-padding)
                 while vad_buf.len() >= VAD_CHUNK_SIZE {
                     let chunk: Vec<f32> = vad_buf.drain(..VAD_CHUNK_SIZE).collect();
-                    let vad_prob = vad
-                        .speech_probability(&chunk, SAMPLE_RATE)
-                        .unwrap_or(0.0);
+                    let vad_prob = vad.speech_probability(&chunk, SAMPLE_RATE).unwrap_or(0.0);
                     // Energy-based fallback: RMS threshold for system audio
-                    let rms = (chunk.iter().map(|s| s * s).sum::<f32>()
-                        / chunk.len() as f32)
-                        .sqrt();
+                    let rms =
+                        (chunk.iter().map(|s| s * s).sum::<f32>() / chunk.len() as f32).sqrt();
                     let is_speech = vad_prob >= 0.5 || rms >= ENERGY_RMS_THRESHOLD;
-                    debug!(
-                        "VAD chunk: vad={vad_prob:.4}, rms={rms:.4}, speech={is_speech}"
-                    );
+                    debug!("VAD chunk: vad={vad_prob:.4}, rms={rms:.4}, speech={is_speech}");
 
                     if is_speech {
                         speech_samples += VAD_CHUNK_SIZE;
@@ -102,8 +97,7 @@ fn run_pipeline(
                         {
                             debug!(
                                 "Silence for {:.1}s, speech was {:.1}s < 3.0s, resetting",
-                                silence_chunks as f32 * VAD_CHUNK_SIZE as f32
-                                    / SAMPLE_RATE as f32,
+                                silence_chunks as f32 * VAD_CHUNK_SIZE as f32 / SAMPLE_RATE as f32,
                                 speech_samples as f32 / SAMPLE_RATE as f32
                             );
                             speech_samples = 0;
@@ -255,17 +249,14 @@ mod tests {
     #[test]
     fn energy_rms_detects_loud_audio() {
         let loud: Vec<f32> = vec![0.3; VAD_CHUNK_SIZE];
-        let rms =
-            (loud.iter().map(|s| s * s).sum::<f32>() / loud.len() as f32).sqrt();
+        let rms = (loud.iter().map(|s| s * s).sum::<f32>() / loud.len() as f32).sqrt();
         assert!(rms >= ENERGY_RMS_THRESHOLD);
     }
 
     #[test]
     fn energy_rms_ignores_silence() {
         let silent: Vec<f32> = vec![0.001; VAD_CHUNK_SIZE];
-        let rms = (silent.iter().map(|s| s * s).sum::<f32>()
-            / silent.len() as f32)
-            .sqrt();
+        let rms = (silent.iter().map(|s| s * s).sum::<f32>() / silent.len() as f32).sqrt();
         assert!(rms < ENERGY_RMS_THRESHOLD);
     }
 }

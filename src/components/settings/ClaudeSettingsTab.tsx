@@ -4,26 +4,28 @@ import { commands } from "@/bindings";
 
 type ConnectionStatus = "unknown" | "checking" | "connected" | "disconnected" | "error";
 
-const STATUS_INFO: Record<ConnectionStatus, { label: string; dotClass: string; textClass: string }> =
-  {
-    unknown: {
-      label: "未確認",
-      dotClass: "bg-muted-foreground",
-      textClass: "text-muted-foreground",
-    },
-    checking: {
-      label: "確認中...",
-      dotClass: "bg-yellow-400 animate-pulse",
-      textClass: "text-muted-foreground",
-    },
-    connected: { label: "接続済み", dotClass: "bg-green-500", textClass: "text-green-500" },
-    disconnected: {
-      label: "未接続",
-      dotClass: "bg-yellow-500",
-      textClass: "text-yellow-500",
-    },
-    error: { label: "エラー", dotClass: "bg-red-500", textClass: "text-red-500" },
-  };
+const STATUS_INFO: Record<
+  ConnectionStatus,
+  { label: string; dotClass: string; textClass: string }
+> = {
+  unknown: {
+    label: "未確認",
+    dotClass: "bg-muted-foreground",
+    textClass: "text-muted-foreground",
+  },
+  checking: {
+    label: "確認中...",
+    dotClass: "bg-yellow-400 animate-pulse",
+    textClass: "text-muted-foreground",
+  },
+  connected: { label: "接続済み", dotClass: "bg-green-500", textClass: "text-green-500" },
+  disconnected: {
+    label: "未接続",
+    dotClass: "bg-yellow-500",
+    textClass: "text-yellow-500",
+  },
+  error: { label: "エラー", dotClass: "bg-red-500", textClass: "text-red-500" },
+};
 
 /**
  * @description Claude AI接続状態の表示とAI分析の設定を管理するタブ。
@@ -31,8 +33,8 @@ const STATUS_INFO: Record<ConnectionStatus, { label: string; dotClass: string; t
  * @returns Claude設定のUI要素
  */
 export function ClaudeSettingsTab() {
-  const settings = useSettingsStore(s => s.settings);
-  const update = useSettingsStore(s => s.updateSetting);
+  const settings = useSettingsStore((s) => s.settings);
+  const update = useSettingsStore((s) => s.updateSetting);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("unknown");
   const [aiEnabled, setAiEnabled] = useState(true);
 
@@ -40,7 +42,7 @@ export function ClaudeSettingsTab() {
     setConnectionStatus("checking");
     commands
       .healthCheck()
-      .then(result => {
+      .then((result) => {
         if (result.status === "ok") {
           setConnectionStatus("connected");
         } else {
@@ -84,7 +86,7 @@ export function ClaudeSettingsTab() {
           role="switch"
           aria-checked={aiEnabled}
           onClick={() => {
-            setAiEnabled(prev => !prev);
+            setAiEnabled((prev) => !prev);
           }}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
             aiEnabled ? "bg-primary" : "bg-muted"
@@ -109,7 +111,7 @@ export function ClaudeSettingsTab() {
           max={10}
           step={1}
           value={settings.analysisIntervalMinutes}
-          onChange={e => {
+          onChange={(e) => {
             update("analysisIntervalMinutes", Number(e.target.value));
           }}
           className="w-full"

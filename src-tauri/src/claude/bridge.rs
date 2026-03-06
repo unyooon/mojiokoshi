@@ -5,7 +5,10 @@ use std::sync::Mutex;
 
 use crate::error::AppError;
 
-use super::types::{AiSummary, AnalysisBatchResult, BridgeRequest, BridgeResponse};
+use super::types::{
+    AiSummary, AnalysisBatchResult, BridgeRequest, BridgeResponse, FormattedTranscript,
+    QuestionSuggestion,
+};
 
 /// Bridge to the Node.js Claude Agent SDK sidecar process.
 /// Communicates via JSON-lines over stdin/stdout.
@@ -157,6 +160,7 @@ impl ClaudeCodeBridge {
                 },
                 action_items: vec![],
                 decisions: vec![],
+                topics: vec![],
             })
             .map_err(|e| AppError::AiAnalysis(e.to_string()))?,
             "investigate" => serde_json::json!({
@@ -170,6 +174,56 @@ impl ClaudeCodeBridge {
             "generate_minutes" => serde_json::json!({
                 "markdown": "# Meeting Minutes (Stub)\n\nNo content."
             }),
+            "format_transcript" => {
+                let segments = request
+                    .payload
+                    .get("segments")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|seg| {
+                                let text = seg.get("text")?.as_str()?;
+                                let speaker = seg
+                                    .get("speaker")
+                                    .and_then(|s| s.as_str())
+                                    .unwrap_or("Unknown");
+                                Some(format!("[{speaker}] {text}"))
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                let last_end = request
+                    .payload
+                    .get("segments")
+                    .and_then(|v| v.as_array())
+                    .and_then(|arr| arr.last())
+                    .and_then(|seg| seg.get("end_time"))
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                serde_json::to_value(FormattedTranscript {
+                    formatted_text: segments.join("\n"),
+                    last_segment_end_ms: last_end,
+                })
+                .map_err(|e| AppError::AiAnalysis(e.to_string()))?
+            }
+            "suggest_questions" => serde_json::to_value(vec![
+                QuestionSuggestion {
+                    id: format!("q-{}-1", request.id),
+                    text: "What are the next steps?".to_string(),
+                    reason: "The discussion seems to be reaching a conclusion.".to_string(),
+                },
+                QuestionSuggestion {
+                    id: format!("q-{}-2", request.id),
+                    text: "Who is responsible for this action item?".to_string(),
+                    reason: "An action item was mentioned without an assignee.".to_string(),
+                },
+                QuestionSuggestion {
+                    id: format!("q-{}-3", request.id),
+                    text: "What is the timeline for this decision?".to_string(),
+                    reason: "A decision was made without a clear deadline.".to_string(),
+                },
+            ])
+            .map_err(|e| AppError::AiAnalysis(e.to_string()))?,
             "translate" => {
                 let text = request
                     .payload

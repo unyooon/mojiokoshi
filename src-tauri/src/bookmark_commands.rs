@@ -45,10 +45,7 @@ pub fn add_bookmark(
 /// Returns `AppError::Storage` when the bookmark is not found or the delete fails.
 #[tauri::command]
 #[specta::specta]
-pub fn remove_bookmark(
-    storage: State<'_, Arc<SqliteStorage>>,
-    id: String,
-) -> Result<(), AppError> {
+pub fn remove_bookmark(storage: State<'_, Arc<SqliteStorage>>, id: String) -> Result<(), AppError> {
     storage.remove_bookmark(&id)
 }
 

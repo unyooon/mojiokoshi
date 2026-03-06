@@ -4,14 +4,25 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::claude::batch::BatchProcessor;
 use crate::claude::bridge::ClaudeCodeBridge;
-use crate::claude::types::{BridgeRequest, InvestigatePayload, InvestigationResult};
+use crate::claude::types::{
+    BridgeRequest, FormattedTranscript, InvestigatePayload, InvestigationResult,
+    QuestionSuggestion, TranscriptSegmentForAi,
+};
 use crate::error::AppError;
 use crate::storage::sqlite::SqliteStorage;
 
+/// State for the AI analysis pipeline.
 pub struct AiState {
+    /// Bridge to the Claude Code sidecar process.
     pub bridge: Arc<ClaudeCodeBridge>,
+    /// Persistent storage for segments and keywords.
     pub storage: Arc<SqliteStorage>,
+    /// The active batch processor, if analysis is running.
     pub batch_processor: Mutex<Option<BatchProcessor>>,
+    /// End timestamp (ms) of the last successfully formatted transcript segment.
+    pub last_format_end_ms: Mutex<f64>,
+    /// The most recently formatted transcript text for continuity.
+    pub last_formatted_text: Mutex<Option<String>>,
 }
 
 fn lock_err<T: std::fmt::Display>(e: T) -> AppError {
@@ -161,6 +172,130 @@ pub fn generate_minutes(ai: State<'_, AiState>, session_id: String) -> Result<St
         .ok_or_else(|| AppError::AiAnalysis("No markdown in response".into()))
 }
 
+/// Format the transcript segments using the AI sidecar, incrementally from the last formatted position.
+///
+/// # Errors
+///
+/// Returns `AppError::AiAnalysis` if the bridge request fails or no new segments are available.
+#[tauri::command]
+#[specta::specta]
+pub fn format_transcript(
+    app: AppHandle,
+    ai: State<'_, AiState>,
+    session_id: String,
+) -> Result<FormattedTranscript, AppError> {
+    ai.bridge.start()?;
+
+    let last_end_ms = *ai.last_format_end_ms.lock().map_err(lock_err)?;
+    let last_formatted = ai.last_formatted_text.lock().map_err(lock_err)?.clone();
+
+    let all_segments = ai.storage.get_segments(&session_id)?;
+    let new_segments: Vec<TranscriptSegmentForAi> = all_segments
+        .iter()
+        .filter(|s| s.start_time >= last_end_ms && !s.is_partial)
+        .map(|s| TranscriptSegmentForAi {
+            speaker: s.speaker.clone(),
+            text: s.text.clone(),
+            start_time: s.start_time,
+            end_time: s.end_time,
+        })
+        .collect();
+
+    if new_segments.is_empty() {
+        return Err(AppError::AiAnalysis("No new segments to format".into()));
+    }
+
+    let payload = serde_json::to_value(crate::claude::types::FormatTranscriptPayload {
+        segments: new_segments,
+        previous_formatted: last_formatted,
+    })
+    .map_err(|e| AppError::AiAnalysis(e.to_string()))?;
+
+    let request = BridgeRequest {
+        id: uuid::Uuid::new_v4().to_string(),
+        request_type: "format_transcript".to_string(),
+        payload,
+    };
+
+    let response = ai.bridge.send_request(request)?;
+    if response.response_type == "error" {
+        let msg = response
+            .payload
+            .get("message")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Transcript formatting failed");
+        return Err(AppError::AiAnalysis(msg.to_string()));
+    }
+
+    let result: FormattedTranscript = serde_json::from_value(response.payload)
+        .map_err(|e| AppError::AiAnalysis(e.to_string()))?;
+
+    *ai.last_format_end_ms.lock().map_err(lock_err)? = result.last_segment_end_ms;
+    *ai.last_formatted_text.lock().map_err(lock_err)? = Some(result.formatted_text.clone());
+
+    let _ = app.emit("ai:formatted-transcript", &result);
+    Ok(result)
+}
+
+/// Suggest follow-up questions based on the current transcript and summary.
+///
+/// # Errors
+///
+/// Returns `AppError::AiAnalysis` if the bridge request fails or the response is malformed.
+#[tauri::command]
+#[specta::specta]
+pub fn suggest_questions(
+    ai: State<'_, AiState>,
+    session_id: String,
+) -> Result<Vec<QuestionSuggestion>, AppError> {
+    ai.bridge.start()?;
+
+    let segments = ai.storage.get_segments(&session_id)?;
+    let recent_segments: Vec<&crate::storage::Segment> = segments
+        .iter()
+        .rev()
+        .take(20)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+
+    let transcript: String = recent_segments
+        .iter()
+        .map(|s| {
+            let speaker = s.speaker.as_deref().unwrap_or("Unknown");
+            format!("[{speaker}] {}", s.text)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let payload = serde_json::json!({
+        "transcript_text": transcript,
+        "session_id": session_id,
+    });
+
+    let request = BridgeRequest {
+        id: uuid::Uuid::new_v4().to_string(),
+        request_type: "suggest_questions".to_string(),
+        payload,
+    };
+
+    let response = ai.bridge.send_request(request)?;
+    if response.response_type == "error" {
+        let msg = response
+            .payload
+            .get("message")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Question suggestion failed");
+        return Err(AppError::AiAnalysis(msg.to_string()));
+    }
+
+    let suggestions: Vec<QuestionSuggestion> = serde_json::from_value(response.payload)
+        .map_err(|e| AppError::AiAnalysis(e.to_string()))?;
+
+    Ok(suggestions)
+}
+
 fn emit_batch_results(
     app: &AppHandle,
     batch: &crate::claude::types::AnalysisBatchResult,
@@ -169,6 +304,7 @@ fn emit_batch_results(
     let _ = app.emit("ai:summary", &batch.summary);
     let _ = app.emit("ai:actions", &batch.action_items);
     let _ = app.emit("ai:decisions", &batch.decisions);
+    let _ = app.emit("ai:topics", &batch.topics);
     Ok(())
 }
 
@@ -176,27 +312,29 @@ fn emit_batch_results(
 mod tests {
     use super::*;
 
-    #[test]
-    fn ai_state_can_be_created() {
+    fn make_ai_state() -> AiState {
         let bridge = Arc::new(ClaudeCodeBridge::new());
         let storage = Arc::new(SqliteStorage::in_memory().unwrap());
-        let state = AiState {
+        AiState {
             bridge,
             storage,
             batch_processor: Mutex::new(None),
-        };
+            last_format_end_ms: Mutex::new(0.0),
+            last_formatted_text: Mutex::new(None),
+        }
+    }
+
+    #[test]
+    fn ai_state_can_be_created() {
+        let state = make_ai_state();
         assert!(state.batch_processor.lock().unwrap().is_none());
+        assert!(*state.last_format_end_ms.lock().unwrap() == 0.0);
+        assert!(state.last_formatted_text.lock().unwrap().is_none());
     }
 
     #[test]
     fn stop_analysis_clears_processor() {
-        let bridge = Arc::new(ClaudeCodeBridge::new());
-        let storage = Arc::new(SqliteStorage::in_memory().unwrap());
-        let state = AiState {
-            bridge,
-            storage,
-            batch_processor: Mutex::new(None),
-        };
+        let state = make_ai_state();
         let mut guard = state.batch_processor.lock().unwrap();
         assert!(guard.is_none());
         *guard = None; // stop equivalent

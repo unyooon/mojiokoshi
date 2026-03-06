@@ -1,5 +1,4 @@
 import { useInsightsStore } from "@/stores/insightsStore";
-import { FeatureStatusBanner } from "./FeatureStatusBanner";
 
 function formatTime(ms: number): string {
   return new Date(ms).toLocaleTimeString("ja-JP", {
@@ -25,11 +24,8 @@ export function SummaryCard() {
 
   if (!summary) {
     return (
-      <div>
-        <FeatureStatusBanner status="stub" />
-        <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-          AI分析待ち...
-        </div>
+      <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+        AI分析待ち...
       </div>
     );
   }

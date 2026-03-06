@@ -34,7 +34,7 @@ export function ExportSettingsTab() {
       <div className="space-y-2">
         <h4 className="text-sm font-medium">デフォルトエクスポート形式</h4>
         <div className="space-y-2">
-          {formats.map(format => (
+          {formats.map((format) => (
             <label
               key={format.id}
               className={`flex items-start gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors ${

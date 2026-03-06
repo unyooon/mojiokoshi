@@ -1,6 +1,6 @@
 pub mod ai_commands;
-pub mod bookmark_commands;
 pub mod audio;
+pub mod bookmark_commands;
 pub mod claude;
 pub mod commands;
 pub mod diarization;
@@ -8,12 +8,8 @@ pub mod diarization_commands;
 pub mod error;
 pub mod export;
 pub mod export_commands;
-pub mod keyword_dictionary_commands;
-pub mod meeting_link_commands;
 pub mod search_commands;
-pub mod sentiment_commands;
 pub mod storage;
-pub mod translation_commands;
 pub mod whisper;
 
 #[cfg(test)]
@@ -28,8 +24,10 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 use ai_commands::{
-    generate_minutes, investigate, run_ai_batch, start_ai_analysis, stop_ai_analysis, AiState,
+    format_transcript, generate_minutes, investigate, run_ai_batch, start_ai_analysis,
+    stop_ai_analysis, suggest_questions, AiState,
 };
+use bookmark_commands::{add_bookmark, get_bookmarks, remove_bookmark};
 use commands::{
     check_screen_capture_permission, check_sidecar_status, create_session, download_whisper_model,
     end_session, focus_main_window, get_capture_state, get_whisper_model_status, health_check,
@@ -41,18 +39,10 @@ use diarization_commands::{
     DiarizationState,
 };
 use error::AppError;
-use bookmark_commands::{add_bookmark, get_bookmarks, remove_bookmark};
 use export_commands::{export_markdown, export_pdf, save_export_file};
-use keyword_dictionary_commands::{
-    add_dictionary_keyword, delete_dictionary_keyword, get_all_dictionary_keywords,
-    update_dictionary_keyword,
-};
-use meeting_link_commands::{find_related_meetings, get_meeting_links};
 use search_commands::{
     get_all_settings, get_setting, rebuild_search_index, search_transcripts, set_setting,
 };
-use sentiment_commands::{analyze_sentiment, get_sentiments};
-use translation_commands::{get_translations, translate_segments};
 
 /// Run the Tauri application.
 ///
@@ -76,6 +66,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             run_ai_batch,
             investigate,
             generate_minutes,
+            format_transcript,
+            suggest_questions,
             start_diarization,
             stop_diarization,
             run_diarization,
@@ -89,16 +81,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             get_all_settings,
             export_markdown,
             save_export_file,
-            translate_segments,
-            get_translations,
-            find_related_meetings,
-            get_meeting_links,
-            analyze_sentiment,
-            get_sentiments,
-            add_dictionary_keyword,
-            update_dictionary_keyword,
-            delete_dictionary_keyword,
-            get_all_dictionary_keywords,
             check_sidecar_status,
             get_whisper_model_status,
             download_whisper_model,
@@ -184,6 +166,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 bridge,
                 storage: Arc::clone(&db),
                 batch_processor: Mutex::new(None),
+                last_format_end_ms: Mutex::new(0.0),
+                last_formatted_text: Mutex::new(None),
             });
 
             app.manage(DiarizationState {

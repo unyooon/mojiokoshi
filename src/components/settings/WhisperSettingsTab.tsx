@@ -16,8 +16,8 @@ type DownloadStatus = "idle" | "downloading" | "done" | "error";
  * @returns WhisperモデルのUI要素
  */
 export function WhisperSettingsTab() {
-  const settings = useSettingsStore(s => s.settings);
-  const update = useSettingsStore(s => s.updateSetting);
+  const settings = useSettingsStore((s) => s.settings);
+  const update = useSettingsStore((s) => s.updateSetting);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>("idle");
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
 
@@ -50,7 +50,7 @@ export function WhisperSettingsTab() {
       </div>
 
       <div className="space-y-2">
-        {WHISPER_MODELS.map(model => (
+        {WHISPER_MODELS.map((model) => (
           <div
             key={model.id}
             className={`flex items-center justify-between rounded-md border px-3 py-2 transition-colors ${

@@ -102,3 +102,35 @@ export interface MeetingLink {
   shared_keywords: string[];
   created_at: string;
 }
+
+/** 議論トピック */
+export interface AiTopic {
+  /** トピックの一意識別子 */
+  id: string;
+  /** トピックのタイトル */
+  title: string;
+  /** トピックの要約テキスト */
+  summary: string;
+  /** トピック開始位置（ミリ秒） */
+  start_ms: number;
+  /** トピック終了位置（ミリ秒） */
+  end_ms: number;
+}
+
+/** フォーマット済みトランスクリプト */
+export interface FormattedTranscript {
+  /** 整形済みのテキスト */
+  formatted_text: string;
+  /** 最後にフォーマットされたセグメントの終了位置（ミリ秒） */
+  last_segment_end_ms: number;
+}
+
+/** 質問候補 */
+export interface QuestionSuggestion {
+  /** 質問の一意識別子 */
+  id: string;
+  /** 質問テキスト */
+  text: string;
+  /** この質問を提案する理由 */
+  reason: string;
+}

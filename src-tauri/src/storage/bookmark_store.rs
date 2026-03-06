@@ -68,10 +68,7 @@ impl SqliteStorage {
     pub fn remove_bookmark(&self, id: &str) -> Result<(), AppError> {
         let conn = self.lock_conn()?;
         let rows = conn
-            .execute(
-                "DELETE FROM bookmarks WHERE id = ?1",
-                rusqlite::params![id],
-            )
+            .execute("DELETE FROM bookmarks WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| AppError::Storage(e.to_string()))?;
         if rows == 0 {
             return Err(AppError::Storage(format!("bookmark not found: {id}")));
@@ -158,12 +155,13 @@ mod tests {
         let sid = storage.create_session("BM Seg").unwrap();
         let row_id = insert_test_segment(&storage, &sid);
         let seg_id_str = row_id.to_string();
-        let bm_id = storage
-            .add_bookmark(&sid, Some(&seg_id_str), None)
-            .unwrap();
+        let bm_id = storage.add_bookmark(&sid, Some(&seg_id_str), None).unwrap();
         assert!(!bm_id.is_empty());
         let bookmarks = storage.get_bookmarks(&sid).unwrap();
-        assert_eq!(bookmarks[0].segment_id.as_deref(), Some(seg_id_str.as_str()));
+        assert_eq!(
+            bookmarks[0].segment_id.as_deref(),
+            Some(seg_id_str.as_str())
+        );
         assert!(bookmarks[0].note.is_none());
     }
 
